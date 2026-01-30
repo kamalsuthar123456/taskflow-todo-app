@@ -1,0 +1,15 @@
+/* FORCE Toast Container Position */
+div[data-hot-toast] {
+  position: fixed !important;
+  top: 80px !important;
+  right: 20px !important;
+  z-index: 9999 !important;
+}
+
+@media (max-width: 640px) {
+  div[data-hot-toast] {
+    top: 60px !important;
+    right: 10px !important;
+    left: 10px !important;
+  }
+}
