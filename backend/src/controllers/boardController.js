@@ -15,7 +15,7 @@ export const getBoards = async (req, res) => {
       data: boards
     });
   } catch (error) {
-    console.error("Error fetching boards:", error);
+    // console.error("Error fetching boards:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching boards",
@@ -45,14 +45,14 @@ export const createBoard = async (req, res) => {
       ownerId: userId
     });
 
-    console.log("✅ Board created:", board.title);
+    // console.log("✅ Board created:", board.title);
 
     res.status(201).json({
       success: true,
       data: board
     });
   } catch (error) {
-    console.error("❌ Error creating board:", error);
+    // console.error("❌ Error creating board:", error);
     res.status(500).json({
       success: false,
       message: "Error creating board",
@@ -84,14 +84,14 @@ export const updateBoard = async (req, res) => {
       });
     }
 
-    console.log("✅ Board updated:", board.title);
+    // console.log("✅ Board updated:", board.title);
 
     res.json({
       success: true,
       data: board
     });
   } catch (error) {
-    console.error("❌ Error updating board:", error);
+    // console.error("❌ Error updating board:", error);
     res.status(500).json({
       success: false,
       message: "Error updating board",
@@ -118,11 +118,11 @@ export const deleteBoard = async (req, res) => {
       });
     }
 
-    console.log("✅ Board deleted:", board.title);
+    // console.log("✅ Board deleted:", board.title);
 
     res.status(204).send();
   } catch (error) {
-    console.error("❌ Error deleting board:", error);
+    // console.error("❌ Error deleting board:", error);
     res.status(500).json({
       success: false,
       message: "Error deleting board",

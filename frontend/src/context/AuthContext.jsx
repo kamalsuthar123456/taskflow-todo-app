@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       try {
         await setPersistence(auth, browserLocalPersistence);
       } catch (error) {
-        // Silent error handling
+        // Silent error
       }
     };
     setupAuth();
@@ -63,7 +63,6 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // Sync user to MongoDB
   const syncUserToMongoDB = async (firebaseUser) => {
     try {
       await client.post("/users/sync", {
@@ -83,13 +82,19 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
       await syncUserToMongoDB(userCredential.user);
       await sendEmailVerification(userCredential.user);
       
-      navigate("/verify-email");
-      return { success: true, message: "Account created! Check your email." };
+      // ❌ REMOVED navigate from here - let RegisterForm handle it
+      // ❌ REMOVED toast from here - let RegisterForm handle it
+      
+      return { 
+        success: true, 
+        message: "Account created! Check your email.",
+        shouldVerifyEmail: true 
+      };
     } catch (err) {
+      // ❌ REMOVED toast - let RegisterForm handle errors
       throw err;
     } finally {
       setLoading(false);
@@ -103,15 +108,17 @@ export const AuthProvider = ({ children }) => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
       if (!userCredential.user.emailVerified) {
-        navigate("/verify-email");
         throw new Error("Please verify your email before logging in");
       }
 
       await syncUserToMongoDB(userCredential.user);
-
-      navigate("/");
-      return { success: true };
+      
+      // ❌ REMOVED navigate from here - let LoginForm handle it
+      // ❌ REMOVED toast from here - let LoginForm handle it
+      
+      return { success: true, user: userCredential.user };
     } catch (err) {
+      // ❌ REMOVED toast - let LoginForm handle errors
       throw err;
     } finally {
       setLoading(false);
@@ -121,10 +128,14 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await signOut(auth);
-      navigate("/auth");
+      
+      // ❌ REMOVED toast from here - let Dashboard handle it
+      // ❌ REMOVED navigate from here - let Dashboard handle it
+      
       return { success: true };
     } catch (err) {
-      return { success: false, message: err.message };
+      // ❌ REMOVED toast - let Dashboard handle errors
+      return { success: false, error: err.message };
     }
   };
 

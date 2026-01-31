@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import toast from 'react-hot-toast';
 
 const RegisterForm = () => {
   const { register } = useAuth();
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "", confirmPassword: "" });
   const [info, setInfo] = useState("");
   const [error, setError] = useState("");
@@ -21,36 +24,56 @@ const RegisterForm = () => {
 
     // Validate passwords match
     if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match");
+      const errorMsg = "Passwords do not match";
+      setError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
     // Validate password strength
     if (form.password.length < 6) {
-      setError("Password must be at least 6 characters");
+      const errorMsg = "Password must be at least 6 characters";
+      setError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
     setLoading(true);
 
     try {
-      await register(form.email, form.password);
-      setInfo("Account created successfully! Please check your email for verification link.");
-      setForm({ email: "", password: "", confirmPassword: "" });
+      const result = await register(form.email, form.password);
+      
+      if (result.success) {
+        // ✅ Show ONLY ONE success toast
+        toast.success('Account created! Check your email for verification 🎉', {
+          duration: 3000,
+        });
+        
+        setForm({ email: "", password: "", confirmPassword: "" });
+        
+        // Navigate to verify email page
+        setTimeout(() => {
+          navigate("/verify-email", { replace: true });
+        }, 300);
+      }
+      
     } catch (err) {
       console.error("Registration error:", err);
       
       // User-friendly error messages
+      let errorMessage = "";
       if (err.code === "auth/email-already-in-use") {
-        setError("This email is already registered");
+        errorMessage = "This email is already registered";
       } else if (err.code === "auth/invalid-email") {
-        setError("Invalid email address");
+        errorMessage = "Invalid email address";
       } else if (err.code === "auth/weak-password") {
-        setError("Password is too weak");
+        errorMessage = "Password is too weak";
       } else {
-        setError(err.message || "Failed to create account");
+        errorMessage = err.message || "Failed to create account";
       }
-    } finally {
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
     }
   };
@@ -138,4 +161,3 @@ const RegisterForm = () => {
 };
 
 export default RegisterForm;
-

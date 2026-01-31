@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import toast from 'react-hot-toast';
 
 const LoginForm = () => {
   const { login } = useAuth();
@@ -11,7 +12,7 @@ const LoginForm = () => {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    setError(""); // Clear error when user types
+    setError("");
   };
 
   const handleSubmit = async (e) => {
@@ -20,24 +21,42 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      await login(form.email, form.password);
-      navigate("/");
+      const result = await login(form.email, form.password);
+      
+      if (result.success) {
+        // ✅ Show ONLY ONE success toast
+        toast.success('Welcome back! 👋', {
+          duration: 2000,
+        });
+        
+        // Navigate after short delay to prevent flickering
+        setTimeout(() => {
+          navigate("/", { replace: true });
+        }, 300);
+      }
+      
     } catch (err) {
       console.error("Login error:", err);
       
       // User-friendly error messages
-      if (err.code === "auth/invalid-credential") {
-        setError("Invalid email or password");
+      let errorMessage = "";
+      if (err.message === "Please verify your email before logging in") {
+        errorMessage = "Please verify your email before logging in";
+        navigate("/verify-email");
+      } else if (err.code === "auth/invalid-credential") {
+        errorMessage = "Invalid email or password";
       } else if (err.code === "auth/user-not-found") {
-        setError("No account found with this email");
+        errorMessage = "No account found with this email";
       } else if (err.code === "auth/wrong-password") {
-        setError("Incorrect password");
+        errorMessage = "Incorrect password";
       } else if (err.code === "auth/too-many-requests") {
-        setError("Too many failed attempts. Try again later");
+        errorMessage = "Too many failed attempts. Try again later";
       } else {
-        setError(err.message || "Failed to login");
+        errorMessage = err.message || "Failed to login";
       }
-    } finally {
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
     }
   };

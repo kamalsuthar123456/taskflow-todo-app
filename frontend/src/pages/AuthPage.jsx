@@ -43,9 +43,9 @@ const AuthPage = () => {
               </svg>
             </div>
             <div>
-              <h3 className="font-semibold mb-1">Clean Architecture</h3>
+              <h3 className="font-semibold mb-1">Your Productivity Superpower 💪</h3>
               <p className="text-sm text-muted">
-                Professional-grade code structure with proper authentication, CRUD operations, and responsive design.
+                Modern task dashboard with habit tracking, smart priorities. Built to help you crush goals and stay consistent. Let's make every day count! ✨
               </p>
             </div>
           </div>

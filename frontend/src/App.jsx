@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from 'react-hot-toast'; // ✅ ADD THIS
 import { useAuth } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
@@ -20,7 +21,54 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      {user && <Navbar />}
+      {/* ✅ ADD TOASTER HERE */}
+      <Toaster 
+        position="top-center"
+        reverseOrder={false}
+        gutter={8}
+        containerStyle={{
+          top: 20,
+        }}
+        toastOptions={{
+          duration: 2500,
+          style: {
+            background: '#1e293b',
+            color: '#fff',
+            border: '1px solid #334155',
+            padding: '16px 24px',
+            borderRadius: '12px',
+            fontSize: '15px',
+            fontWeight: '600',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            minWidth: '300px',
+          },
+          success: {
+            duration: 2000,
+            style: {
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: '#fff',
+              border: '1px solid #059669',
+            },
+            iconTheme: {
+              primary: '#fff',
+              secondary: '#10b981',
+            },
+          },
+          error: {
+            duration: 3500,
+            style: {
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              color: '#fff',
+              border: '1px solid #dc2626',
+            },
+            iconTheme: {
+              primary: '#fff',
+              secondary: '#ef4444',
+            },
+          },
+        }}
+      />
+      
       <Routes>
         <Route 
           path="/auth" 

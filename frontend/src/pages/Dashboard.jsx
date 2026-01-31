@@ -1,40 +1,294 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import toast, { Toaster } from 'react-hot-toast';
 import { 
-  Plus, 
   Search, 
-  Filter,
   CheckCircle2, 
-  Clock,
-  BarChart3,
+  Circle,
   Sparkles,
   Flame,
-  Calendar,
-  LogOut,
   Trash2,
-  Edit3,
-  MoreVertical,
-  X
+  X,
+  ListTodo,
+  Plus
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import client from "../api/client";
+import Navbar from "../components/Navbar";
 
-const Dashboard = () => {
-  const { user, logout } = useAuth();
-  const [boards, setBoards] = useState([]);
-  const [habits, setHabits] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showHabitModal, setShowHabitModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [selectedBoard, setSelectedBoard] = useState(null);
-  const [newBoardTitle, setNewBoardTitle] = useState("");
-  const [newBoardDescription, setNewBoardDescription] = useState("");
-  const [openMenuId, setOpenMenuId] = useState(null);
+// ========================================
+// 🎨 UTILITY FUNCTIONS
+// ========================================
 
+function uid() {
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+
+function cx(...c) {
+  return c.filter(Boolean).join(" ");
+}
+
+function formatDateKey(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function startOfDay(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function getStreakDays(completionsByDay) {
+  const today = startOfDay(new Date());
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - i);
+    const key = formatDateKey(day);
+    if (completionsByDay[key]) streak += 1;
+    else break;
+  }
+  return streak;
+}
+
+const spring = { type: "spring", stiffness: 420, damping: 34, mass: 0.7 };
+
+// ========================================
+// 🎨 UI COMPONENTS
+// ========================================
+
+function SceneCard({ children, className }) {
+  return (
+    <div
+      className={cx(
+        "relative rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl",
+        "shadow-[0_20px_70px_rgba(0,0,0,0.45)] overflow-hidden",
+        className
+      )}
+    >
+      <div className="absolute inset-0 opacity-[0.18] pointer-events-none" style={{
+        backgroundImage:
+          "radial-gradient(900px 500px at 20% 10%, rgba(168,85,247,.30), transparent 60%), radial-gradient(800px 500px at 80% 20%, rgba(34,211,238,.22), transparent 60%), radial-gradient(800px 600px at 30% 90%, rgba(59,130,246,.18), transparent 60%)",
+      }} />
+      <div className="relative">{children}</div>
+    </div>
+  );
+}
+
+function Tilt({ children, className }) {
+  const [style, setStyle] = useState({});
+
+  function onMove(e) {
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    const rx = (py - 0.5) * -10;
+    const ry = (px - 0.5) * 10;
+    setStyle({
+      transform: `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(0)`,
+    });
+  }
+
+  function onLeave() {
+    setStyle({ transform: "perspective(900px) rotateX(0deg) rotateY(0deg)" });
+  }
+
+  return (
+    <div
+      className={cx("[transform-style:preserve-3d] transition-transform duration-150", className)}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      style={style}
+    >
+      {children}
+    </div>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, accent }) {
+  return (
+    <Tilt>
+      <SceneCard className="p-4 sm:p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs text-white/60">{label}</div>
+            <div className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight">{value}</div>
+          </div>
+          <div
+            className={cx(
+              "h-11 w-11 rounded-xl flex items-center justify-center",
+              "border border-white/10 bg-white/5",
+              "shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+            )}
+            style={{ boxShadow: `0 14px 40px ${accent}` }}
+          >
+            <Icon className="h-5 w-5" style={{ color: "rgba(255,255,255,0.9)" }} />
+          </div>
+        </div>
+      </SceneCard>
+    </Tilt>
+  );
+}
+
+function PriorityPill({ value }) {
+  const map = {
+    low: { label: "Low", cls: "bg-emerald-500/10 text-emerald-200 border-emerald-400/20" },
+    medium: { label: "Medium", cls: "bg-amber-500/10 text-amber-200 border-amber-400/20" },
+    high: { label: "High", cls: "bg-rose-500/10 text-rose-200 border-rose-400/20" },
+  };
+  const p = map[value] || map.medium;
+  return (
+    <span className={cx("inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold", p.cls)}>
+      {p.label}
+    </span>
+  );
+}
+
+function ModalShell({ open, onClose, title, description, children }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.button
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+          <motion.div
+            className="relative w-full max-w-lg"
+            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 18, scale: 0.98 }}
+            transition={spring}
+          >
+            <SceneCard className="p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h2>
+                  {description && <p className="mt-1 text-sm text-white/65">{description}</p>}
+                </div>
+                <button
+                  className="h-10 w-10 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+                  onClick={onClose}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-5">{children}</div>
+            </SceneCard>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// Add Task Modal
+function AddTaskModal({ open, onClose, onAdd }) {
+  const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState("medium");
+
+  function submit(e) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) return;
+    onAdd({ title: t, priority });
+    setTitle("");
+    setPriority("medium");
+    onClose();
+  }
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      title="Create New Task"
+      description="Give it a title and pick priority. Smooth animations included."
+    >
+      <form className="space-y-4" onSubmit={submit}>
+        <div>
+          <label className="text-xs font-semibold text-white/70" htmlFor="taskTitle">
+            Task title
+          </label>
+          <div className="mt-2">
+            <input
+              id="taskTitle"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Finish UI polish"
+              className={cx(
+                "w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3",
+                "text-sm text-white placeholder:text-white/40",
+                "outline-none focus:ring-4 focus:ring-violet-500/20 focus:border-violet-400/30 transition"
+              )}
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <div className="text-xs font-semibold text-white/70">Priority</div>
+            <div className="mt-2 flex items-center gap-2">
+              {[
+                { k: "low", label: "Low" },
+                { k: "medium", label: "Med" },
+                { k: "high", label: "High" },
+              ].map((p) => (
+                <button
+                  key={p.k}
+                  type="button"
+                  onClick={() => setPriority(p.k)}
+                  className={cx(
+                    "flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                    "bg-white/[0.03] hover:bg-white/[0.06] border-white/10",
+                    priority === p.k && "ring-4 ring-violet-500/20 border-violet-400/30"
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold text-white/70">Preview</div>
+            <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <div className="text-sm font-semibold">{title || "Your task title"}</div>
+              <div className="mt-2"><PriorityPill value={priority} /></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-4 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/5 transition"
+          >
+            Cancel
+          </button>
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            className="rounded-xl px-4 py-2 text-sm font-semibold bg-violet-500/90 hover:bg-violet-500 text-white shadow-[0_12px_30px_rgba(139,92,246,0.35)] transition"
+            type="submit"
+          >
+            Create
+          </motion.button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+// Habit Modal
+function AddHabitModal({ open, onClose, onAdd }) {
   const habitTypes = [
     { id: 'gym', name: 'Gym Workout', color: 'from-red-500 to-orange-500', emoji: '💪' },
     { id: 'running', name: 'Running', color: 'from-green-500 to-emerald-500', emoji: '🏃' },
@@ -44,812 +298,453 @@ const Dashboard = () => {
     { id: 'meal', name: 'Healthy Meal', color: 'from-yellow-500 to-orange-500', emoji: '🥗' }
   ];
 
-  useEffect(() => {
-    if (user) {
-      fetchBoards();
-      loadHabits();
-    }
-  }, [user]);
-
-  const fetchBoards = async () => {
-    try {
-      setLoading(true);
-      const response = await client.get('/boards');
-      setBoards(response.data.data || []);
-    } catch (error) {
-      console.error("Error fetching boards:", error);
-      toast.error("Failed to load boards");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadHabits = () => {
-    const saved = localStorage.getItem('daily-habits');
-    if (saved) {
-      setHabits(JSON.parse(saved));
-    }
-  };
-
-  const saveHabits = (newHabits) => {
-    localStorage.setItem('daily-habits', JSON.stringify(newHabits));
-    setHabits(newHabits);
-  };
-
-  const toggleHabit = (habitId) => {
-    const today = new Date().toDateString();
-    const updated = habits.map(h => {
-      if (h.id === habitId) {
-        const completed = h.completedDates?.includes(today);
-        if (!completed) {
-          toast.success(`${h.emoji} ${h.name} completed!`);
-        }
-        return {
-          ...h,
-          completedDates: completed 
-            ? h.completedDates.filter(d => d !== today)
-            : [...(h.completedDates || []), today]
-        };
-      }
-      return h;
-    });
-    saveHabits(updated);
-  };
-
-  const addHabit = (habitType) => {
-    const newHabit = {
-      id: Date.now().toString(),
-      type: habitType.id,
-      name: habitType.name,
-      color: habitType.color,
-      emoji: habitType.emoji,
-      completedDates: [],
-      createdAt: new Date().toISOString()
-    };
-    saveHabits([...habits, newHabit]);
-    setShowHabitModal(false);
-    toast.success(`${habitType.emoji} ${habitType.name} added!`);
-  };
-
-  const deleteHabit = (habitId) => {
-    const updated = habits.filter(h => h.id !== habitId);
-    saveHabits(updated);
-    toast.success('Habit removed!');
-  };
-
-  const handleCreateBoard = async () => {
-    if (!newBoardTitle.trim()) {
-      toast.error("Please enter a board title");
-      return;
-    }
-
-    const loadingToast = toast.loading('Creating board...');
-
-    try {
-      setLoading(true);
-      const response = await client.post('/boards', {
-        title: newBoardTitle,
-        description: newBoardDescription
-      });
-
-      setBoards([response.data.data, ...boards]);
-      setNewBoardTitle("");
-      setNewBoardDescription("");
-      setShowCreateModal(false);
-      
-      toast.success('Board created successfully!', { id: loadingToast });
-    } catch (error) {
-      console.error("Error creating board:", error);
-      toast.error('Failed to create board', { id: loadingToast });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditBoard = async () => {
-    if (!newBoardTitle.trim()) {
-      toast.error("Please enter a board title");
-      return;
-    }
-
-    const loadingToast = toast.loading('Updating board...');
-
-    try {
-      setLoading(true);
-      const response = await client.put(`/boards/${selectedBoard._id}`, {
-        title: newBoardTitle,
-        description: newBoardDescription
-      });
-
-      setBoards(boards.map(b => 
-        b._id === selectedBoard._id ? response.data.data : b
-      ));
-      
-      setNewBoardTitle("");
-      setNewBoardDescription("");
-      setShowEditModal(false);
-      setSelectedBoard(null);
-      
-      toast.success('Board updated successfully!', { id: loadingToast });
-    } catch (error) {
-      console.error("Error updating board:", error);
-      toast.error('Failed to update board', { id: loadingToast });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteBoard = async () => {
-    const loadingToast = toast.loading('Deleting board...');
-
-    try {
-      await client.delete(`/boards/${selectedBoard._id}`);
-      
-      setBoards(boards.filter(b => b._id !== selectedBoard._id));
-      setShowDeleteConfirm(false);
-      setSelectedBoard(null);
-      
-      toast.success('Board deleted successfully!', { id: loadingToast });
-    } catch (error) {
-      console.error("Error deleting board:", error);
-      toast.error('Failed to delete board', { id: loadingToast });
-    }
-  };
-
-  const openEditModal = (board) => {
-    setSelectedBoard(board);
-    setNewBoardTitle(board.title);
-    setNewBoardDescription(board.description || "");
-    setShowEditModal(true);
-    setOpenMenuId(null);
-  };
-
-  const openDeleteModal = (board) => {
-    setSelectedBoard(board);
-    setShowDeleteConfirm(true);
-    setOpenMenuId(null);
-  };
-
-  const handleLogout = async () => {
-    const result = await logout();
-    if (result.success) {
-      toast.success('Logged out successfully!');
-    }
-  };
-
-  const todayStreak = habits.filter(h => 
-    h.completedDates?.includes(new Date().toDateString())
-  ).length;
-
-  const filteredBoards = boards.filter(board =>
-    board.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    board.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      {/* ✅ FIXED TOAST POSITION */}
-      <Toaster 
-        position="top-right"
-        reverseOrder={false}
-        gutter={12}
-        containerStyle={{
-          top: '80px',
-          right: '20px',
-          zIndex: 9999,
-        }}
-        toastOptions={{
-          duration: 3000,
-          className: '',
-          style: {
-            background: '#1e293b',
-            color: '#fff',
-            border: '1px solid #334155',
-            padding: '16px',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '500',
-            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4)',
-            maxWidth: '400px',
-          },
-          success: {
-            duration: 2000,
-            style: {
-              background: '#10b981',
-              color: '#fff',
-            },
-            iconTheme: {
-              primary: '#fff',
-              secondary: '#10b981',
-            },
-          },
-          error: {
-            duration: 3000,
-            style: {
-              background: '#ef4444',
-              color: '#fff',
-            },
-            iconTheme: {
-              primary: '#fff',
-              secondary: '#ef4444',
-            },
-          },
-          loading: {
-            style: {
-              background: '#6366f1',
-              color: '#fff',
-            },
-            iconTheme: {
-              primary: '#fff',
-              secondary: '#6366f1',
-            },
-          },
-        }}
-      />
-
-      {/* Fixed Navbar */}
-      <motion.nav 
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        className="fixed top-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-xl font-bold text-white">TaskFlow</h1>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-slate-400 hidden sm:block">
-                {user?.email?.split('@')[0]}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-                title="Logout"
-              >
-                <LogOut className="w-5 h-5 text-slate-400 hover:text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </motion.nav>
-
-      {/* Main Content */}
-      <div className="pt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Welcome Section */}
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      title="Add Daily Habit"
+      description="Pick a template — it will create a task instantly."
+    >
+      <div className="grid grid-cols-2 gap-3">
+        {habitTypes.map((type, index) => (
+          <motion.button
+            key={type.id}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8"
+            transition={{ delay: index * 0.05 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              onAdd(type);
+              onClose();
+            }}
+            className={`relative p-4 rounded-2xl bg-gradient-to-br ${type.color} border-2 border-transparent hover:border-white/20 transition-all overflow-hidden`}
           >
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                <span className="text-3xl">👋</span>
-                Welcome back, {user?.email?.split('@')[0]}!
-              </h2>
-              <p className="text-slate-400 text-base sm:text-lg">
-                {todayStreak > 0 ? `🔥 ${todayStreak} habits completed today!` : "Let's make today productive ✨"}
-              </p>
+            <div className="flex flex-col items-center gap-2">
+              <div className="text-3xl">{type.emoji}</div>
+              <span className="text-sm font-medium text-white text-center">{type.name}</span>
+              <span className="text-[10px] text-white/70">Tap to add</span>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowCreateModal(true)}
-              className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Create Board
-            </motion.button>
-          </motion.div>
+            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/20 border border-white/10 flex items-center justify-center">
+              <Plus className="w-3 h-3 text-white" />
+            </div>
+          </motion.button>
+        ))}
+      </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.02 }}
-              className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl p-4 sm:p-6 hover:border-blue-500/50 transition-all"
-            >
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl">
-                  <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
+      <button
+        onClick={onClose}
+        className="w-full mt-4 px-4 py-3 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-white font-semibold transition"
+      >
+        Cancel
+      </button>
+    </ModalShell>
+  );
+}
+
+// Task Row
+function TaskRow({ task, onToggle, onDelete }) {
+  const done = !!task.completed;
+  return (
+    <motion.div
+      layout
+      transition={spring}
+      className={cx(
+        "group rounded-2xl border border-white/10 bg-white/[0.03]",
+        "hover:bg-white/[0.05] transition",
+        done && "opacity-75"
+      )}
+    >
+      <div className="flex items-start gap-3 p-4">
+        <button
+          onClick={() => onToggle(task.id)}
+          className={cx(
+            "mt-0.5 h-10 w-10 rounded-xl border border-white/10 bg-black/20",
+            "hover:bg-white/5 transition flex items-center justify-center",
+            "shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
+          )}
+        >
+          {done ? (
+            <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+          ) : (
+            <Circle className="h-5 w-5 text-white/60" />
+          )}
+        </button>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className={cx("text-sm sm:text-base font-semibold tracking-tight", done && "line-through text-white/50")}>
+                {task.title}
               </div>
-              <p className="text-slate-400 text-xs sm:text-sm mb-1">Total Boards</p>
-              <p className="text-2xl sm:text-3xl font-bold text-white">{boards.length}</p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              whileHover={{ scale: 1.02 }}
-              className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl p-4 sm:p-6 hover:border-orange-500/50 transition-all"
-            >
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <div className="p-2 sm:p-3 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl">
-                  <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <PriorityPill value={task.priority} />
+                <span className="text-[11px] text-white/45">{done ? "Completed" : "Active"}</span>
               </div>
-              <p className="text-slate-400 text-xs sm:text-sm mb-1">Active Tasks</p>
-              <p className="text-2xl sm:text-3xl font-bold text-white">0</p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              whileHover={{ scale: 1.02 }}
-              className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl p-4 sm:p-6 hover:border-green-500/50 transition-all"
-            >
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <div className="p-2 sm:p-3 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl">
-                  <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
-              </div>
-              <p className="text-slate-400 text-xs sm:text-sm mb-1">Completed</p>
-              <p className="text-2xl sm:text-3xl font-bold text-white">0</p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              whileHover={{ scale: 1.02 }}
-              className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl p-4 sm:p-6 hover:border-pink-500/50 transition-all"
-            >
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <div className="p-2 sm:p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl">
-                  <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
-              </div>
-              <p className="text-slate-400 text-xs sm:text-sm mb-1">Streak</p>
-              <p className="text-2xl sm:text-3xl font-bold text-white">{todayStreak}</p>
-            </motion.div>
-          </div>
-
-          {/* Daily Habits */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-                <Calendar className="w-6 h-6" />
-                Today's Habits
-              </h3>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowHabitModal(true)}
-                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold text-sm flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Add Habit
-              </motion.button>
             </div>
 
-            {habits.length === 0 ? (
-              <div className="text-center py-8 bg-slate-800/30 rounded-2xl border border-slate-700 border-dashed">
-                <p className="text-slate-400 mb-4">No habits yet. Add your first habit!</p>
-                <button
-                  onClick={() => setShowHabitModal(true)}
-                  className="text-indigo-400 hover:text-indigo-300 font-medium"
-                >
-                  + Add Habit
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-                <AnimatePresence>
-                  {habits.map((habit, index) => {
-                    const today = new Date().toDateString();
-                    const isCompleted = habit.completedDates?.includes(today);
-
-                    return (
-                      <motion.div
-                        key={habit.id}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="relative group"
-                      >
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => toggleHabit(habit.id)}
-                          className={`w-full relative p-4 rounded-2xl border-2 transition-all ${
-                            isCompleted 
-                              ? 'bg-gradient-to-br ' + habit.color + ' border-transparent shadow-lg' 
-                              : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
-                          }`}
-                        >
-                          <div className="flex flex-col items-center gap-2">
-                            <div className={`text-3xl ${isCompleted ? 'animate-bounce' : ''}`}>
-                              {habit.emoji}
-                            </div>
-                            <span className={`text-xs font-medium text-center ${
-                              isCompleted ? 'text-white' : 'text-slate-400'
-                            }`}>
-                              {habit.name}
-                            </span>
-                            {isCompleted && (
-                              <motion.div
-                                initial={{ scale: 0 }}
-                                animate={{ scale: 1 }}
-                                className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"
-                              >
-                                <CheckCircle2 className="w-4 h-4 text-white" />
-                              </motion.div>
-                            )}
-                          </div>
-                        </motion.button>
-                        
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteHabit(habit.id);
-                          }}
-                          className="absolute -top-2 -left-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        >
-                          <X className="w-4 h-4 text-white" />
-                        </button>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
-
-          {/* Search and Filter */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-8">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search boards..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all"
-              />
-            </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-6 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+            <button
+              onClick={() => onDelete(task.id)}
+              className={cx(
+                "opacity-0 group-hover:opacity-100 transition",
+                "h-10 w-10 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-rose-500/10 hover:border-rose-400/20",
+                "flex items-center justify-center"
+              )}
             >
-              <Filter className="w-5 h-5" />
-              Filter
-            </motion.button>
-          </div>
-
-          {/* Boards Section */}
-          <div>
-            <h3 className="text-xl sm:text-2xl font-bold text-white mb-6 flex items-center gap-2">
-              My Boards
-              <span className="text-sm font-normal text-slate-400">
-                ({filteredBoards.length})
-              </span>
-            </h3>
-
-            {filteredBoards.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-16 bg-slate-800/30 rounded-2xl border border-slate-700 border-dashed"
-              >
-                <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
-                  <Plus className="w-10 h-10 text-white" />
-                </div>
-                <h4 className="text-2xl font-bold text-white mb-2">
-                  {searchQuery ? "No boards found" : "No boards yet"}
-                </h4>
-                <p className="text-slate-400 mb-6">
-                  {searchQuery ? "Try a different search term" : "Create your first board to get started!"}
-                </p>
-                {!searchQuery && (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowCreateModal(true)}
-                    className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
-                  >
-                    Create Your First Board
-                  </motion.button>
-                )}
-              </motion.div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {filteredBoards.map((board, index) => (
-                  <motion.div
-                    key={board._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ scale: 1.02, y: -5 }}
-                    className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 hover:border-indigo-500 transition-all relative group"
-                  >
-                    <div className="absolute top-4 right-4">
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === board._id ? null : board._id)}
-                        className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
-                      >
-                        <MoreVertical className="w-5 h-5 text-slate-400" />
-                      </button>
-
-                      <AnimatePresence>
-                        {openMenuId === board._id && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                            className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-10 overflow-hidden"
-                          >
-                            <button
-                              onClick={() => openEditModal(board)}
-                              className="w-full px-4 py-3 text-left hover:bg-slate-700 transition-colors flex items-center gap-3 text-white"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                              Edit Board
-                            </button>
-                            <button
-                              onClick={() => openDeleteModal(board)}
-                              className="w-full px-4 py-3 text-left hover:bg-red-500/10 transition-colors flex items-center gap-3 text-red-400"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Delete Board
-                            </button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-
-                    <h4 className="text-xl font-bold text-white mb-2 pr-8">
-                      {board.title}
-                    </h4>
-                    <p className="text-slate-400 text-sm mb-4 line-clamp-2">
-                      {board.description || "No description"}
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-slate-500">
-                      <span>Created: {new Date(board.createdAt).toLocaleDateString()}</span>
-                      <span className="px-2 py-1 bg-slate-700 rounded">0 tasks</span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+              <Trash2 className="h-4 w-4 text-white/70 group-hover:text-rose-200" />
+            </button>
           </div>
         </div>
       </div>
+    </motion.div>
+  );
+}
 
-      {/* Create Board Modal */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-slate-800 rounded-2xl p-6 sm:p-8 max-w-md w-full"
-            >
-              <h2 className="text-2xl font-bold text-white mb-6">
-                Create New Board
-              </h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Board Title *
-                  </label>
-                  <input
-                    type="text"
-                    value={newBoardTitle}
-                    onChange={(e) => setNewBoardTitle(e.target.value)}
-                    placeholder="e.g., Work Projects"
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-                    onKeyPress={(e) => e.key === 'Enter' && handleCreateBoard()}
-                  />
+// ========================================
+// 🎯 MAIN DASHBOARD
+// ========================================
+
+const Dashboard = () => {
+  // Tasks state
+  const [tasks, setTasks] = useState([]);
+  const [taskFilter, setTaskFilter] = useState("all");
+  const [taskQuery, setTaskQuery] = useState("");
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [isHabitOpen, setIsHabitOpen] = useState(false);
+  
+  const [completionsByDay, setCompletionsByDay] = useState(() => {
+    const saved = localStorage.getItem('completions-by-day');
+    if (saved) return JSON.parse(saved);
+    const t = new Date();
+    const y = new Date();
+    y.setDate(t.getDate() - 1);
+    return {
+      [formatDateKey(t)]: true,
+      [formatDateKey(y)]: true,
+    };
+  });
+
+  // Load tasks
+  useEffect(() => {
+    const saved = localStorage.getItem('tasks');
+    if (saved) setTasks(JSON.parse(saved));
+  }, []);
+
+  // Save tasks
+  useEffect(() => {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem('completions-by-day', JSON.stringify(completionsByDay));
+  }, [completionsByDay]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const total = tasks.length;
+    const done = tasks.filter((t) => t.completed).length;
+    const active = total - done;
+    const streak = getStreakDays(completionsByDay);
+    return { total, done, active, streak };
+  }, [tasks, completionsByDay]);
+
+  const filteredTasks = useMemo(() => {
+    const q = taskQuery.trim().toLowerCase();
+    return tasks
+      .filter((t) => {
+        if (taskFilter === "active") return !t.completed;
+        if (taskFilter === "done") return t.completed;
+        return true;
+      })
+      .filter((t) => (q ? t.title.toLowerCase().includes(q) : true));
+  }, [tasks, taskFilter, taskQuery]);
+
+  function addTask({ title, priority }) {
+    const newTask = { id: uid(), title, completed: false, priority };
+    setTasks((prev) => [newTask, ...prev]);
+  }
+
+  function addHabitAsTask(habitType) {
+    const newTask = { 
+      id: uid(), 
+      title: habitType.name + " 🎯", 
+      completed: false, 
+      priority: 'medium',
+      isHabit: true,
+      emoji: habitType.emoji
+    };
+    setTasks((prev) => [newTask, ...prev]);
+  }
+
+  function toggleTask(id) {
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        const next = { ...t, completed: !t.completed };
+        if (next.completed) {
+          const key = formatDateKey(new Date());
+          setCompletionsByDay((m) => ({ ...m, [key]: true }));
+        }
+        return next;
+      })
+    );
+  }
+
+  function deleteTask(id) {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  function clearCompleted() {
+    setTasks((prev) => prev.filter((t) => !t.completed));
+  }
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(1200px_600px_at_50%_20%,rgba(168,85,247,0.22),transparent_60%),radial-gradient(900px_600px_at_80%_10%,rgba(34,211,238,0.12),transparent_60%),radial-gradient(1000px_700px_at_20%_90%,rgba(59,130,246,0.10),transparent_55%),linear-gradient(to_bottom,rgba(2,6,23,1),rgba(3,7,18,1))] text-slate-100">
+      
+      {/* ✅ ONLY NAVBAR COMPONENT - NO DUPLICATE CODE */}
+      <Navbar onAddTaskClick={() => setIsAddTaskOpen(true)} />
+
+      {/* Main Content - NO NAVBAR CODE HERE */}
+      <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
+        {/* Welcome Section */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <SceneCard className="p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 text-xs text-white/60">
+                  <Sparkles className="h-4 w-4" />
+                  Today
                 </div>
+                <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight">
+                  Welcome back, <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">suthargaurishankar398</span>
+                </h1>
+                <p className="mt-1 text-sm text-white/65">
+                  Let's make today productive
+                </p>
+              </div>
 
+              <motion.div
+                className="hidden sm:block"
+                animate={{ y: [0, -8, 0], rotate: [0, 2, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <div className="h-16 w-16 rounded-2xl bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.28),rgba(255,255,255,0.05),rgba(255,255,255,0.02))] border border-white/10 shadow-[0_22px_70px_rgba(34,211,238,0.15)]" />
+              </motion.div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <StatCard
+                icon={ListTodo}
+                label="Total"
+                value={stats.total}
+                accent="rgba(168,85,247,0.22)"
+              />
+              <StatCard
+                icon={Circle}
+                label="Active"
+                value={stats.active}
+                accent="rgba(34,211,238,0.18)"
+              />
+              <StatCard
+                icon={CheckCircle2}
+                label="Done"
+                value={stats.done}
+                accent="rgba(16,185,129,0.16)"
+              />
+            </div>
+          </SceneCard>
+        </motion.div>
+
+        {/* Streak Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-8"
+        >
+          <SceneCard className="p-5 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 text-xs text-white/60">
+                  <Flame className="h-4 w-4" />
+                  Streak
+                </div>
+                <div className="mt-1 text-3xl font-bold tracking-tight">{stats.streak} days</div>
+                <div className="mt-1 text-sm text-white/65">Finish at least 1 task daily.</div>
+              </div>
+
+              <motion.div
+                className="relative"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+              >
+                <div className="h-16 w-16 rounded-full border border-white/10 bg-white/[0.02] shadow-[0_18px_60px_rgba(139,92,246,0.20)]" />
+                <div className="absolute inset-0 rounded-full border border-white/10 [mask-image:linear-gradient(to_bottom,transparent,black,transparent)]" />
+              </motion.div>
+            </div>
+
+            <div className="mt-6">
+              <div className="flex items-center justify-between text-xs text-white/60">
+                <span>Today's progress</span>
+                <span>{stats.done}/{stats.total}</span>
+              </div>
+              <div className="mt-2 h-2 rounded-full bg-white/5 border border-white/10 overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-violet-500/90 via-fuchsia-500/80 to-cyan-400/80"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${stats.total ? Math.round((stats.done / stats.total) * 100) : 0}%` }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                />
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={clearCompleted}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 transition"
+                >
+                  Clear completed
+                </button>
+
+                <button
+                  onClick={() => setIsHabitOpen(true)}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 transition"
+                >
+                  Add daily habit
+                </button>
+
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setIsAddTaskOpen(true)}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold bg-violet-500/20 hover:bg-violet-500/25 border border-violet-300/20 transition"
+                >
+                  Quick add
+                </motion.button>
+              </div>
+            </div>
+          </SceneCard>
+        </motion.div>
+
+        {/* Tasks Grid */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-5"
+        >
+          {/* Filters */}
+          <div className="lg:col-span-4">
+            <SceneCard className="p-5 sm:p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    value={newBoardDescription}
-                    onChange={(e) => setNewBoardDescription(e.target.value)}
-                    placeholder="What's this board for?"
-                    rows="3"
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 resize-none"
-                  />
+                  <div className="text-xs text-white/60">Focus</div>
+                  <div className="mt-1 text-xl font-bold tracking-tight">Filters</div>
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setNewBoardTitle("");
-                    setNewBoardDescription("");
-                  }}
-                  className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateBoard}
-                  disabled={loading || !newBoardTitle.trim()}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? "Creating..." : "Create"}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Edit Board Modal */}
-      <AnimatePresence>
-        {showEditModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-slate-800 rounded-2xl p-6 sm:p-8 max-w-md w-full"
-            >
-              <h2 className="text-2xl font-bold text-white mb-6">
-                Edit Board
-              </h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Board Title *
-                  </label>
-                  <input
-                    type="text"
-                    value={newBoardTitle}
-                    onChange={(e) => setNewBoardTitle(e.target.value)}
-                    placeholder="e.g., Work Projects"
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    value={newBoardDescription}
-                    onChange={(e) => setNewBoardDescription(e.target.value)}
-                    placeholder="What's this board for?"
-                    rows="3"
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setNewBoardTitle("");
-                    setNewBoardDescription("");
-                    setSelectedBoard(null);
-                  }}
-                  className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleEditBoard}
-                  disabled={loading || !newBoardTitle.trim()}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? "Updating..." : "Update"}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-slate-800 rounded-2xl p-6 sm:p-8 max-w-md w-full"
-            >
-              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-8 h-8 text-red-500" />
-              </div>
-              
-              <h2 className="text-2xl font-bold text-white mb-2 text-center">
-                Delete Board?
-              </h2>
-              
-              <p className="text-slate-400 text-center mb-6">
-                Are you sure you want to delete "<span className="text-white font-semibold">{selectedBoard?.title}</span>"? This action cannot be undone.
-              </p>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setSelectedBoard(null);
-                  }}
-                  className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteBoard}
-                  className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
-                >
-                  Delete
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Add Habit Modal */}
-      <AnimatePresence>
-        {showHabitModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-slate-800 rounded-2xl p-6 sm:p-8 max-w-lg w-full max-h-[80vh] overflow-y-auto"
-            >
-              <h2 className="text-2xl font-bold text-white mb-6">
-                Add Daily Habit
-              </h2>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {habitTypes.map((type, index) => (
-                  <motion.button
-                    key={type.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => addHabit(type)}
-                    className={`p-4 rounded-2xl bg-gradient-to-br ${type.color} border-2 border-transparent hover:border-white/20 transition-all`}
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {[
+                  { k: "all", label: "All" },
+                  { k: "active", label: "Active" },
+                  { k: "done", label: "Done" },
+                ].map((b) => (
+                  <button
+                    key={b.k}
+                    onClick={() => setTaskFilter(b.k)}
+                    className={cx(
+                      "rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                      "bg-white/[0.03] hover:bg-white/[0.06] border-white/10",
+                      taskFilter === b.k && "ring-4 ring-violet-500/20 border-violet-400/30"
+                    )}
                   >
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="text-4xl">{type.emoji}</div>
-                      <span className="text-sm font-medium text-white text-center">
-                        {type.name}
-                      </span>
-                    </div>
-                  </motion.button>
+                    {b.label}
+                  </button>
                 ))}
               </div>
 
-              <button
-                onClick={() => setShowHabitModal(false)}
-                className="w-full mt-6 px-4 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-colors"
-              >
-                Cancel
-              </button>
-            </motion.div>
+              <div className="mt-4">
+                <div className="text-xs font-semibold text-white/70">Search</div>
+                <div className="mt-2 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                  <input
+                    value={taskQuery}
+                    onChange={(e) => setTaskQuery(e.target.value)}
+                    placeholder="Search tasks…"
+                    className={cx(
+                      "w-full rounded-xl border border-white/10 bg-black/20 pl-9 pr-3 py-3",
+                      "text-sm text-white placeholder:text-white/40",
+                      "outline-none focus:ring-4 focus:ring-cyan-500/15 focus:border-cyan-400/30 transition"
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <div className="text-xs text-white/60">Tip</div>
+                  <div className="mt-1 text-sm font-semibold">Tap tasks to complete</div>
+                  <div className="mt-1 text-sm text-white/65">
+                    Completing at least one task each day keeps your streak alive.
+                  </div>
+                </div>
+              </div>
+            </SceneCard>
           </div>
-        )}
-      </AnimatePresence>
+
+          {/* Tasks List */}
+          <div className="lg:col-span-8">
+            <SceneCard className="p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs text-white/60">Tasks</div>
+                  <div className="mt-1 text-xl font-bold tracking-tight">Your list</div>
+                </div>
+                <div className="text-xs text-white/60">
+                  Showing <span className="text-white/80">{filteredTasks.length}</span>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <AnimatePresence initial={false}>
+                  {filteredTasks.map((task) => (
+                    <TaskRow key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} />
+                  ))}
+                </AnimatePresence>
+
+                {filteredTasks.length === 0 && (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center">
+                    <div className="mx-auto h-12 w-12 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center">
+                      <ListTodo className="h-5 w-5 text-white/70" />
+                    </div>
+                    <div className="mt-3 text-sm font-semibold">No tasks found</div>
+                    <div className="mt-1 text-sm text-white/60">Try a different filter or add a new task.</div>
+                    <button
+                      onClick={() => setIsAddTaskOpen(true)}
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 transition"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add task
+                    </button>
+                  </div>
+                )}
+              </div>
+            </SceneCard>
+          </div>
+        </motion.div>
+
+        <footer className="py-10">
+          <div className="text-center text-xs text-white/45">
+            TaskFlow Dashboard — Built with React & Framer Motion
+          </div>
+        </footer>
+      </main>
+
+      {/* Modals */}
+      <AddTaskModal open={isAddTaskOpen} onClose={() => setIsAddTaskOpen(false)} onAdd={addTask} />
+      <AddHabitModal open={isHabitOpen} onClose={() => setIsHabitOpen(false)} onAdd={addHabitAsTask} />
     </div>
   );
 };

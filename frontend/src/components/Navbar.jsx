@@ -1,76 +1,107 @@
 import { useAuth } from "../context/AuthContext";
-import { LogOut, Sparkles, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { LogOut, Sparkles, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import toast from 'react-hot-toast';
+import { motion } from "framer-motion";
 
-const Navbar = () => {
+const Navbar = ({ onAddTaskClick }) => {
   const { user, logout } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout();
-    navigate("/auth");
+    try {
+      const result = await logout();
+      
+      if (result.success) {
+        toast.success('See you soon! 👋', {
+          duration: 2000,
+        });
+        
+        setTimeout(() => {
+          navigate("/auth", { replace: true });
+        }, 300);
+      } else {
+        toast.error(result.error || 'Logout failed');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Something went wrong during logout');
+    }
   };
 
   return (
-    <nav className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
+    <nav className="sticky top-0 z-50 border-b border-white/10 bg-black/20 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div 
             onClick={() => navigate("/")}
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
+            <motion.div 
+              className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-indigo-500/50 transition-all"
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Sparkles className="w-6 h-6 text-white" />
+            </motion.div>
+            <div>
+              <h1 className="text-xl font-bold text-white">TaskFlow</h1>
+              <p className="text-[10px] text-white/50 hidden sm:block"></p>
             </div>
-            <span className="text-2xl font-bold text-white hidden sm:block">TaskFlow</span>
           </div>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-4">
-            <span className="text-slate-400 text-sm">{user?.email}</span>
-            <button
+          <div className="flex items-center gap-3">
+            {/* User Info */}
+            <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                <span className="text-sm font-bold text-white">
+                  {user?.email?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="hidden lg:block">
+                <div className="text-xs text-white/60">Welcome back</div>
+                <div className="text-sm font-semibold text-white">
+                  {user?.email?.split('@')[0]}
+                </div>
+              </div>
+            </div>
+
+            {/* Add Task Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onAddTaskClick}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all font-semibold text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add Task</span>
+            </motion.button>
+
+            {/* Logout Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-all"
+              title="Logout"
             >
               <LogOut className="w-4 h-4" />
-              Logout
-            </button>
+              <span className="hidden sm:inline">Logout</span>
+            </motion.button>
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-slate-400 hover:text-white transition-colors"
-          >
-            {mobileMenuOpen ? (
-              <X className="w-6 h-6" />
-            ) : (
-              <Menu className="w-6 h-6" />
-            )}
-          </button>
+          {/* Mobile User + Logout */}
+          <div className="flex md:hidden items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+              <span className="text-sm font-bold text-white">
+                {user?.email?.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-slate-800 border-t border-slate-700">
-          <div className="px-4 py-4 space-y-3">
-            <div className="text-slate-400 text-sm pb-2 border-b border-slate-700">
-              {user?.email}
-            </div>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
-          </div>
-        </div>
-      )}
     </nav>
   );
 };

@@ -27,7 +27,7 @@ router.post("/sync", async (req, res) => {
       user.lastLoginAt = new Date();
       await user.save();
 
-      console.log("✅ User updated in MongoDB:", user.email);
+      // console.log("✅ User updated in MongoDB:", user.email);
 
       return res.json({
         success: true,
@@ -45,7 +45,7 @@ router.post("/sync", async (req, res) => {
       emailVerified: emailVerified || false
     });
 
-    console.log("✅ New user created in MongoDB:", user.email);
+    // console.log("✅ New user created in MongoDB:", user.email);
 
     res.status(201).json({
       success: true,
@@ -54,7 +54,7 @@ router.post("/sync", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error syncing user:", error);
+    // console.error("❌ Error syncing user:", error);
     res.status(500).json({
       success: false,
       message: "Error syncing user",
@@ -83,7 +83,7 @@ router.get("/:firebaseUid", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error fetching user:", error);
+    // console.error("❌ Error fetching user:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching user",
