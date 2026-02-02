@@ -18,15 +18,10 @@ export const connectDB = async () => {
 
     console.log('✅ MongoDB Connected');
 
-    // Graceful shutdown
-    process.on("SIGINT", async () => {
-      await mongoose.connection.close();
-      process.exit(0);
-    });
-
     return conn;
   } catch (error) {
     console.error("❌ MongoDB connection failed");
+    console.error("Full error:", error);
     process.exit(1);
   }
 };

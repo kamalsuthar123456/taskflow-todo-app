@@ -12,6 +12,14 @@ import {
   Plus
 } from "lucide-react";
 import Navbar from "../components/Navbar";
+import { useAuth } from "../context/AuthContext";
+import AnimatedIcon from "../components/AnimatedIcon";
+import { 
+  getTimeBasedIcon, 
+  getStreakIcon,
+  preloadAllDashboardIcons
+} from "../utils/iconMapper";
+
 
 // ========================================
 // 🎨 UTILITY FUNCTIONS
@@ -209,7 +217,7 @@ function AddTaskModal({ open, onClose, onAdd }) {
       open={open}
       onClose={onClose}
       title="Create New Task"
-      description="Give it a title and pick priority. Smooth animations included."
+      description="Give it a title and pick priority."
     >
       <form className="space-y-4" onSubmit={submit}>
         <div>
@@ -303,7 +311,7 @@ function AddHabitModal({ open, onClose, onAdd }) {
       open={open}
       onClose={onClose}
       title="Add Daily Habit"
-      description="Pick a template — it will create a task instantly."
+      description="Pick a template to create a task instantly."
     >
       <div className="grid grid-cols-2 gap-3">
         {habitTypes.map((type, index) => (
@@ -405,6 +413,10 @@ function TaskRow({ task, onToggle, onDelete }) {
 // ========================================
 
 const Dashboard = () => {
+
+  const { user } = useAuth();
+  const username = user?.email?.split('@')[0] || 'Guest';
+
   // Tasks state
   const [tasks, setTasks] = useState([]);
   const [taskFilter, setTaskFilter] = useState("all");
@@ -439,6 +451,12 @@ const Dashboard = () => {
     localStorage.setItem('completions-by-day', JSON.stringify(completionsByDay));
   }, [completionsByDay]);
 
+  // 🔥 CHANGE 2: ADD THIS NEW useEffect for preloading icons
+  useEffect(() => {
+    preloadAllDashboardIcons().catch(() => {});
+  }, []);
+
+
   // Stats
   const stats = useMemo(() => {
     const total = tasks.length;
@@ -467,11 +485,9 @@ const Dashboard = () => {
   function addHabitAsTask(habitType) {
     const newTask = { 
       id: uid(), 
-      title: habitType.name + " 🎯", 
+      title: `${habitType.name} 🎯`, 
       completed: false, 
-      priority: 'medium',
-      isHabit: true,
-      emoji: habitType.emoji
+      priority: 'medium'
     };
     setTasks((prev) => [newTask, ...prev]);
   }
@@ -520,20 +536,21 @@ const Dashboard = () => {
                   Today
                 </div>
                 <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight">
-                  Welcome back, <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">suthargaurishankar398</span>
+                  Welcome back, <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{username}</span>
                 </h1>
                 <p className="mt-1 text-sm text-white/65">
                   Let's make today productive
                 </p>
               </div>
 
-              <motion.div
-                className="hidden sm:block"
-                animate={{ y: [0, -8, 0], rotate: [0, 2, 0] }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <div className="h-16 w-16 rounded-2xl bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.28),rgba(255,255,255,0.05),rgba(255,255,255,0.02))] border border-white/10 shadow-[0_22px_70px_rgba(34,211,238,0.15)]" />
-              </motion.div>
+              <div className="hidden sm:block">
+                <AnimatedIcon 
+                  iconConfig={getTimeBasedIcon()} 
+                  size="lg" 
+                  animationType="float"
+                  showLabel={false}
+                />
+              </div>
             </div>
 
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -577,14 +594,12 @@ const Dashboard = () => {
                 <div className="mt-1 text-sm text-white/65">Finish at least 1 task daily.</div>
               </div>
 
-              <motion.div
-                className="relative"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-              >
-                <div className="h-16 w-16 rounded-full border border-white/10 bg-white/[0.02] shadow-[0_18px_60px_rgba(139,92,246,0.20)]" />
-                <div className="absolute inset-0 rounded-full border border-white/10 [mask-image:linear-gradient(to_bottom,transparent,black,transparent)]" />
-              </motion.div>
+              <AnimatedIcon 
+                iconConfig={getStreakIcon(stats.streak)} 
+                size="lg" 
+                animationType="pulse"
+                showLabel={true}
+              />
             </div>
 
             <div className="mt-6">

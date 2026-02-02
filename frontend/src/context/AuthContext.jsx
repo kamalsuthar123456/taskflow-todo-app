@@ -64,18 +64,25 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const syncUserToMongoDB = async (firebaseUser) => {
-    try {
-      await client.post("/users/sync", {
-        firebaseUid: firebaseUser.uid,
-        email: firebaseUser.email,
-        displayName: firebaseUser.displayName || "",
-        photoURL: firebaseUser.photoURL || "",
-        emailVerified: firebaseUser.emailVerified
-      });
-    } catch (err) {
-      // Silent error - don't block user flow
-    }
-  };
+  try {
+    const response = await client.post("/users/sync", {
+      firebaseUid: firebaseUser.uid,
+      email: firebaseUser.email,
+      displayName: firebaseUser.displayName || "",
+      photoURL: firebaseUser.photoURL || "",
+      emailVerified: firebaseUser.emailVerified
+    });
+    
+  } catch (err) {
+    // 👇 CHANGED: Log the actual error for debugging
+    console.error("❌ MongoDB sync error:", {
+      status: err.response?.status,
+      message: err.response?.data?.message || err.message,
+      details: err.response?.data
+    });
+    // Still don't block user flow
+  }
+};
 
   const register = async (email, password) => {
     try {

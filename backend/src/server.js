@@ -54,6 +54,7 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
+  console.error("❌ Error:", err.message); // 👈 ADDED: Log errors
   res.status(err.status || 500).json({
     success: false,
     message: process.env.NODE_ENV === 'production' 
@@ -62,22 +63,27 @@ app.use((err, req, res, next) => {
   });
 });
 
+// 👇 MOVED: Declare server outside connectDB
+const PORT = process.env.PORT || 5000;
+let server;
+
 // Graceful shutdown
 const gracefulShutdown = (signal) => {
+  console.log(`\n⚠️  ${signal} received, shutting down gracefully...`);
   if (server) {
     server.close(() => {
+      console.log("✅ Server closed");
       process.exit(0);
     });
+  } else {
+    process.exit(0);
   }
 };
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Start server
-const PORT = process.env.PORT || 5000;
-let server;
-
+// Start server - 👇 MOVED: server is now in outer scope
 connectDB()
   .then(() => {
     server = app.listen(PORT, () => {
@@ -85,7 +91,7 @@ connectDB()
     });
   })
   .catch((err) => {
-    console.error('❌ Failed to start server');
+    console.error('❌ Failed to start server:', err.message);
     process.exit(1);
   });
 

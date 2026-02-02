@@ -16,7 +16,9 @@ router.post("/sync", async (req, res) => {
     }
 
     // Check if user already exists
-    let user = await User.findOne({ firebaseUid });
+     let user = await User.findOne({ 
+      $or: [{ firebaseUid }, { email }] 
+    });
 
     if (user) {
       // Update existing user

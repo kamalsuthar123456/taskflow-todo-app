@@ -55,13 +55,7 @@ const Navbar = ({ onAddTaskClick }) => {
           <div className="flex items-center gap-3">
             {/* User Info */}
             <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                <span className="text-sm font-bold text-white">
-                  {user?.email?.charAt(0).toUpperCase()}
-                </span>
-              </div>
               <div className="hidden lg:block">
-                <div className="text-xs text-white/60">Welcome back</div>
                 <div className="text-sm font-semibold text-white">
                   {user?.email?.split('@')[0]}
                 </div>
