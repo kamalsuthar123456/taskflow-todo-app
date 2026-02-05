@@ -9,10 +9,12 @@ import {
   Trash2,
   X,
   ListTodo,
-  Plus
+  Plus,
+  AlertCircle
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+import { useTasks } from "../hooks/useTasks";  // ✅ ADDED
 import AnimatedIcon from "../components/AnimatedIcon";
 import { 
   getTimeBasedIcon, 
@@ -20,14 +22,9 @@ import {
   preloadAllDashboardIcons
 } from "../utils/iconMapper";
 
-
 // ========================================
 // 🎨 UTILITY FUNCTIONS
 // ========================================
-
-function uid() {
-  return Math.random().toString(16).slice(2) + Date.now().toString(16);
-}
 
 function cx(...c) {
   return c.filter(Boolean).join(" ");
@@ -201,15 +198,25 @@ function ModalShell({ open, onClose, title, description, children }) {
 function AddTaskModal({ open, onClose, onAdd }) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("medium");
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     const t = title.trim();
     if (!t) return;
-    onAdd({ title: t, priority });
-    setTitle("");
-    setPriority("medium");
-    onClose();
+    
+    setSubmitting(true);
+    try {
+      await onAdd({ title: t, priority });
+      setTitle("");
+      setPriority("medium");
+      onClose();
+    } catch (error) {
+      console.error('Failed to add task:', error);
+      alert('Failed to add task. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -230,10 +237,12 @@ function AddTaskModal({ open, onClose, onAdd }) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Finish UI polish"
+              disabled={submitting}
               className={cx(
                 "w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3",
                 "text-sm text-white placeholder:text-white/40",
-                "outline-none focus:ring-4 focus:ring-violet-500/20 focus:border-violet-400/30 transition"
+                "outline-none focus:ring-4 focus:ring-violet-500/20 focus:border-violet-400/30 transition",
+                submitting && "opacity-50 cursor-not-allowed"
               )}
               autoFocus
             />
@@ -253,10 +262,12 @@ function AddTaskModal({ open, onClose, onAdd }) {
                   key={p.k}
                   type="button"
                   onClick={() => setPriority(p.k)}
+                  disabled={submitting}
                   className={cx(
                     "flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition",
                     "bg-white/[0.03] hover:bg-white/[0.06] border-white/10",
-                    priority === p.k && "ring-4 ring-violet-500/20 border-violet-400/30"
+                    priority === p.k && "ring-4 ring-violet-500/20 border-violet-400/30",
+                    submitting && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   {p.label}
@@ -278,16 +289,18 @@ function AddTaskModal({ open, onClose, onAdd }) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl px-4 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/5 transition"
+            disabled={submitting}
+            className="rounded-xl px-4 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/5 transition disabled:opacity-50"
           >
             Cancel
           </button>
           <motion.button
             whileTap={{ scale: 0.98 }}
-            className="rounded-xl px-4 py-2 text-sm font-semibold bg-violet-500/90 hover:bg-violet-500 text-white shadow-[0_12px_30px_rgba(139,92,246,0.35)] transition"
+            disabled={submitting}
+            className="rounded-xl px-4 py-2 text-sm font-semibold bg-violet-500/90 hover:bg-violet-500 text-white shadow-[0_12px_30px_rgba(139,92,246,0.35)] transition disabled:opacity-50"
             type="submit"
           >
-            Create
+            {submitting ? 'Creating...' : 'Create'}
           </motion.button>
         </div>
       </form>
@@ -413,17 +426,28 @@ function TaskRow({ task, onToggle, onDelete }) {
 // ========================================
 
 const Dashboard = () => {
-
   const { user } = useAuth();
   const username = user?.email?.split('@')[0] || 'Guest';
 
-  // Tasks state
-  const [tasks, setTasks] = useState([]);
+  // ✅ USE useTasks HOOK (replaces localStorage)
+  const {
+    tasks,
+    loading: tasksLoading,
+    error: tasksError,
+    addTask: addTaskAPI,
+    toggleTask: toggleTaskAPI,
+    deleteTask: deleteTaskAPI,
+    clearCompleted: clearCompletedAPI,
+    reload: reloadTasks,
+  } = useTasks();
+
+  // UI state
   const [taskFilter, setTaskFilter] = useState("all");
   const [taskQuery, setTaskQuery] = useState("");
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [isHabitOpen, setIsHabitOpen] = useState(false);
   
+  // Streak tracking (keep in localStorage for now)
   const [completionsByDay, setCompletionsByDay] = useState(() => {
     const saved = localStorage.getItem('completions-by-day');
     if (saved) return JSON.parse(saved);
@@ -436,26 +460,15 @@ const Dashboard = () => {
     };
   });
 
-  // Load tasks
-  useEffect(() => {
-    const saved = localStorage.getItem('tasks');
-    if (saved) setTasks(JSON.parse(saved));
-  }, []);
-
-  // Save tasks
-  useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
-
+  // Save completions
   useEffect(() => {
     localStorage.setItem('completions-by-day', JSON.stringify(completionsByDay));
   }, [completionsByDay]);
 
-  // 🔥 CHANGE 2: ADD THIS NEW useEffect for preloading icons
+  // Preload icons
   useEffect(() => {
     preloadAllDashboardIcons().catch(() => {});
   }, []);
-
 
   // Stats
   const stats = useMemo(() => {
@@ -466,6 +479,7 @@ const Dashboard = () => {
     return { total, done, active, streak };
   }, [tasks, completionsByDay]);
 
+  // Filtered tasks
   const filteredTasks = useMemo(() => {
     const q = taskQuery.trim().toLowerCase();
     return tasks
@@ -477,50 +491,102 @@ const Dashboard = () => {
       .filter((t) => (q ? t.title.toLowerCase().includes(q) : true));
   }, [tasks, taskFilter, taskQuery]);
 
-  function addTask({ title, priority }) {
-    const newTask = { id: uid(), title, completed: false, priority };
-    setTasks((prev) => [newTask, ...prev]);
+  // ✅ ADD TASK (calls API)
+  async function addTask({ title, priority }) {
+    try {
+      await addTaskAPI({ title, priority });
+    } catch (error) {
+      console.error('Failed to add task:', error);
+    }
   }
 
-  function addHabitAsTask(habitType) {
-    const newTask = { 
-      id: uid(), 
-      title: `${habitType.name} 🎯`, 
-      completed: false, 
-      priority: 'medium'
-    };
-    setTasks((prev) => [newTask, ...prev]);
+  // ✅ ADD HABIT (calls API)
+  async function addHabitAsTask(habitType) {
+    try {
+      await addTaskAPI({ 
+        title: `${habitType.name} 🎯`, 
+        priority: 'medium'
+      });
+    } catch (error) {
+      console.error('Failed to add habit:', error);
+    }
   }
 
-  function toggleTask(id) {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t;
-        const next = { ...t, completed: !t.completed };
-        if (next.completed) {
-          const key = formatDateKey(new Date());
-          setCompletionsByDay((m) => ({ ...m, [key]: true }));
-        }
-        return next;
-      })
+  // ✅ TOGGLE TASK (calls API)
+  async function toggleTask(id) {
+    try {
+      await toggleTaskAPI(id);
+      
+      // Update streak tracking
+      const task = tasks.find(t => t.id === id);
+      if (task && !task.completed) {
+        const key = formatDateKey(new Date());
+        setCompletionsByDay((m) => ({ ...m, [key]: true }));
+      }
+    } catch (error) {
+      console.error('Failed to toggle task:', error);
+    }
+  }
+
+  // ✅ DELETE TASK (calls API)
+  async function deleteTask(id) {
+    try {
+      await deleteTaskAPI(id);
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+    }
+  }
+
+  // ✅ CLEAR COMPLETED (calls API)
+  async function clearCompleted() {
+    try {
+      await clearCompletedAPI();
+    } catch (error) {
+      console.error('Failed to clear completed:', error);
+    }
+  }
+
+  // ✅ LOADING STATE
+  if (tasksLoading) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(1200px_600px_at_50%_20%,rgba(168,85,247,0.22),transparent_60%),radial-gradient(900px_600px_at_80%_10%,rgba(34,211,238,0.12),transparent_60%),radial-gradient(1000px_700px_at_20%_90%,rgba(59,130,246,0.10),transparent_55%),linear-gradient(to_bottom,rgba(2,6,23,1),rgba(3,7,18,1))] text-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="mt-4 text-xl font-bold">Loading your tasks...</div>
+          <div className="mt-2 text-sm text-white/60">Please wait</div>
+        </div>
+      </div>
     );
   }
 
-  function deleteTask(id) {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-  }
-
-  function clearCompleted() {
-    setTasks((prev) => prev.filter((t) => !t.completed));
+  // ✅ ERROR STATE
+  if (tasksError) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(1200px_600px_at_50%_20%,rgba(168,85,247,0.22),transparent_60%),radial-gradient(900px_600px_at_80%_10%,rgba(34,211,238,0.12),transparent_60%),radial-gradient(1000px_700px_at_20%_90%,rgba(59,130,246,0.10),transparent_55%),linear-gradient(to_bottom,rgba(2,6,23,1),rgba(3,7,18,1))] text-slate-100 flex items-center justify-center">
+        <SceneCard className="p-8 max-w-md">
+          <div className="text-center">
+            <div className="mx-auto h-16 w-16 rounded-2xl border border-red-400/20 bg-red-500/10 flex items-center justify-center">
+              <AlertCircle className="h-8 w-8 text-red-400" />
+            </div>
+            <div className="mt-4 text-xl font-bold text-red-400">Error Loading Tasks</div>
+            <div className="mt-2 text-sm text-white/60">{tasksError}</div>
+            <button 
+              onClick={reloadTasks}
+              className="mt-6 px-6 py-3 bg-violet-500 hover:bg-violet-600 rounded-xl font-semibold transition"
+            >
+              Try Again
+            </button>
+          </div>
+        </SceneCard>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-[radial-gradient(1200px_600px_at_50%_20%,rgba(168,85,247,0.22),transparent_60%),radial-gradient(900px_600px_at_80%_10%,rgba(34,211,238,0.12),transparent_60%),radial-gradient(1000px_700px_at_20%_90%,rgba(59,130,246,0.10),transparent_55%),linear-gradient(to_bottom,rgba(2,6,23,1),rgba(3,7,18,1))] text-slate-100">
       
-      {/* ✅ ONLY NAVBAR COMPONENT - NO DUPLICATE CODE */}
       <Navbar onAddTaskClick={() => setIsAddTaskOpen(true)} />
 
-      {/* Main Content - NO NAVBAR CODE HERE */}
       <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
         {/* Welcome Section */}
         <motion.div
