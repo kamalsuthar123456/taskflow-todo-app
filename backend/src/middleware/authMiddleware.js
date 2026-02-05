@@ -8,6 +8,7 @@ export const requireAuth = (req, res, next) => {
     });
   }
   
+  // Attach user to request
   req.user = { id: userId };
   next();
 };

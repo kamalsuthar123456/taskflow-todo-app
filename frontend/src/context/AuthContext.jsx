@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       try {
         await setPersistence(auth, browserLocalPersistence);
       } catch (error) {
-        // Silent error
+        console.error("Persistence error:", error);
       }
     };
     setupAuth();
@@ -52,6 +52,7 @@ export const AuthProvider = ({ children }) => {
       },
       (err) => {
         if (!unsubscribed) {
+          console.error("Auth state error:", err);
           setLoading(false);
         }
       }
@@ -63,8 +64,10 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const syncUserToMongoDB = async (firebaseUser) => {
+ const syncUserToMongoDB = async (firebaseUser) => {
   try {
+    console.log("🔄 Syncing user to MongoDB:", firebaseUser.email);
+    
     const response = await client.post("/users/sync", {
       firebaseUid: firebaseUser.uid,
       email: firebaseUser.email,
@@ -73,16 +76,18 @@ export const AuthProvider = ({ children }) => {
       emailVerified: firebaseUser.emailVerified
     });
     
+    console.log("✅ User synced successfully:", response.data);
+    
   } catch (err) {
-    // 👇 CHANGED: Log the actual error for debugging
     console.error("❌ MongoDB sync error:", {
+      url: err.config?.url,
       status: err.response?.status,
       message: err.response?.data?.message || err.message,
-      details: err.response?.data
+      fullError: err.response?.data
     });
-    // Still don't block user flow
   }
 };
+
 
   const register = async (email, password) => {
     try {
@@ -92,16 +97,12 @@ export const AuthProvider = ({ children }) => {
       await syncUserToMongoDB(userCredential.user);
       await sendEmailVerification(userCredential.user);
       
-      // ❌ REMOVED navigate from here - let RegisterForm handle it
-      // ❌ REMOVED toast from here - let RegisterForm handle it
-      
       return { 
         success: true, 
         message: "Account created! Check your email.",
         shouldVerifyEmail: true 
       };
     } catch (err) {
-      // ❌ REMOVED toast - let RegisterForm handle errors
       throw err;
     } finally {
       setLoading(false);
@@ -119,13 +120,11 @@ export const AuthProvider = ({ children }) => {
       }
 
       await syncUserToMongoDB(userCredential.user);
-      
-      // ❌ REMOVED navigate from here - let LoginForm handle it
-      // ❌ REMOVED toast from here - let LoginForm handle it
+
+      console.log("✅ Login successful");
       
       return { success: true, user: userCredential.user };
     } catch (err) {
-      // ❌ REMOVED toast - let LoginForm handle errors
       throw err;
     } finally {
       setLoading(false);
@@ -134,14 +133,23 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      console.log("🚪 Logging out...");
+      
+      // ✅ Clear ALL storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // ✅ Sign out from Firebase
       await signOut(auth);
       
-      // ❌ REMOVED toast from here - let Dashboard handle it
-      // ❌ REMOVED navigate from here - let Dashboard handle it
+      // ✅ Clear user state
+      setUser(null);
+      
+      console.log("✅ Logged out successfully");
       
       return { success: true };
     } catch (err) {
-      // ❌ REMOVED toast - let Dashboard handle errors
+      console.error("❌ Logout error:", err);
       return { success: false, error: err.message };
     }
   };

@@ -8,6 +8,11 @@ const todoSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    ownerId: {
+      type: String,
+      required: true,
+      index: true  // ✅ CRITICAL: User isolation ke liye
+    },
     title: { 
       type: String, 
       required: [true, "Todo title is required"],
@@ -32,11 +37,20 @@ const todoSchema = new mongoose.Schema(
     dueDate: { 
       type: Date,
       default: null
+    },
+    completedAt: {
+      type: Date,
+      default: null
     }
   },
   { 
     timestamps: true 
   }
 );
+
+// ✅ Compound indexes for fast queries
+todoSchema.index({ ownerId: 1, boardId: 1 });
+todoSchema.index({ ownerId: 1, status: 1 });
+todoSchema.index({ boardId: 1, createdAt: -1 });
 
 export const Todo = mongoose.model("Todo", todoSchema);
