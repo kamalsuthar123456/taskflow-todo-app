@@ -1,11 +1,9 @@
-// src/components/AnimatedIcon.jsx
-
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
- * AnimatedIcon Component
- * Reusable 3D icon with animations and loading states
+ * ✅ ENHANCED AnimatedIcon Component
+ * Reusable 3D icon with animations, loading states, and fallbacks
  */
 const AnimatedIcon = ({ 
   iconConfig, 
@@ -29,7 +27,7 @@ const AnimatedIcon = ({
     lg: 'w-24 h-24'
   };
 
-  // Animation variants
+  // ✅ ENHANCED: Animation variants with more natural movement
   const animations = {
     float: {
       y: [0, -12, 0],
@@ -40,6 +38,24 @@ const AnimatedIcon = ({
         ease: "easeInOut"
       }
     },
+    pulse: {
+      scale: [1, 1.15, 1],
+      rotate: [0, 5, -5, 0],
+      transition: {
+        duration: 2.5,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }
+    },
+    bounce: {
+      y: [0, -15, 0],
+      scale: [1, 1.05, 1],
+      transition: {
+        duration: 1.8,
+        repeat: Infinity,
+        ease: "easeOut"
+      }
+    },
     rotate: {
       rotate: [0, 360],
       scale: [1, 1.05, 1],
@@ -48,16 +64,46 @@ const AnimatedIcon = ({
         repeat: Infinity,
         ease: "linear"
       }
-    },
-    pulse: {
-      scale: [1, 1.1, 1],
-      opacity: [0.8, 1, 0.8],
-      transition: {
-        duration: 3,
-        repeat: Infinity,
-        ease: "easeInOut"
-      }
     }
+  };
+
+  // ✅ Preload image on mount
+  useEffect(() => {
+    if (iconConfig?.url) {
+      const img = new Image();
+      img.onload = () => {
+        setImageLoaded(true);
+        setImageError(false);
+        console.log(`✅ Icon loaded: ${iconConfig.alt}`);
+      };
+      img.onerror = () => {
+        setImageError(true);
+        setImageLoaded(false);
+        console.error(`❌ Failed to load icon: ${iconConfig.url}`);
+      };
+      img.src = iconConfig.url;
+    }
+  }, [iconConfig?.url, iconConfig?.alt]);
+
+  if (!iconConfig) {
+    console.warn('⚠️ AnimatedIcon: No icon config provided');
+    return null;
+  }
+
+  // ✅ Emoji fallback map
+  const getEmojiFallback = () => {
+    const label = iconConfig.label?.toLowerCase() || '';
+    if (label.includes('morning') || label.includes('coffee')) return '☕';
+    if (label.includes('afternoon') || label.includes('sun')) return '☀️';
+    if (label.includes('evening') || label.includes('sunset')) return '🌅';
+    if (label.includes('night') || label.includes('moon')) return '🌙';
+    if (label.includes('growing') || label.includes('sprout')) return '🌱';
+    if (label.includes('seedling') || label.includes('plant')) return '🪴';
+    if (label.includes('fire') || label.includes('building')) return '🔥';
+    if (label.includes('rocket') || label.includes('unstoppable')) return '🚀';
+    if (label.includes('champion') || label.includes('medal')) return '🏅';
+    if (label.includes('legendary') || label.includes('trophy') || label.includes('master')) return '🏆';
+    return '✨';
   };
 
   return (
@@ -65,10 +111,14 @@ const AnimatedIcon = ({
       <motion.div
         className={`relative ${sizeClasses[size]}`}
         initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1, ...animations[animationType] }}
+        animate={{ 
+          opacity: 1, 
+          scale: 1, 
+          ...animations[animationType] 
+        }}
         transition={{ duration: 0.5 }}
       >
-        {/* Animated Glow Background */}
+        {/* ✅ Animated Glow Background */}
         <motion.div
           className={`absolute inset-0 bg-gradient-to-br ${iconConfig.gradient} rounded-2xl blur-2xl opacity-30`}
           animate={{
@@ -82,38 +132,32 @@ const AnimatedIcon = ({
           }}
         />
 
-        {/* Glass Container */}
+        {/* ✅ Glass Container */}
         <div className={`relative ${sizeClasses[size]} rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 p-3 overflow-hidden shadow-2xl`}>
-          {/* 3D Icon Image - FIXED: Always visible */}
-          {!imageError ? (
+          
+          {/* ✅ Icon Image or Emoji Fallback */}
+          {!imageError && iconConfig.url ? (
             <img
               src={iconConfig.url}
               alt={iconConfig.alt}
-              className={`${iconSizeClasses[size]} object-contain`}
+              className={`${iconSizeClasses[size]} object-contain ${!imageLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
               loading="eager"
             />
           ) : (
-            // Fallback Icon
-            <div className={`${iconSizeClasses[size]} flex items-center justify-center text-white/50`}>
-              <svg
-                className="w-full h-full"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                />
-              </svg>
+            // ✅ Fallback Emoji with same size
+            <div className={`${iconSizeClasses[size]} flex items-center justify-center text-5xl`}>
+              {getEmojiFallback()}
             </div>
           )}
 
-          {/* Shine Effect */}
+          {/* ✅ Loading Skeleton */}
+          {!imageLoaded && !imageError && (
+            <div className={`absolute inset-3 bg-white/10 rounded-lg animate-pulse`} />
+          )}
+
+          {/* ✅ Shine Effect */}
           <motion.div
             className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0"
             animate={{
@@ -128,15 +172,22 @@ const AnimatedIcon = ({
         </div>
       </motion.div>
 
-      {/* Optional Label */}
-      {showLabel && imageLoaded && (
+      {/* ✅ Optional Label with Description */}
+      {showLabel && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mt-3 text-xs font-semibold text-white/70"
+          className="mt-3 text-center"
         >
-          {iconConfig.label}
+          <div className="text-xs font-semibold text-white/80">
+            {iconConfig.label}
+          </div>
+          {iconConfig.description && (
+            <div className="text-[10px] text-white/50 mt-0.5">
+              {iconConfig.description}
+            </div>
+          )}
         </motion.div>
       )}
     </div>

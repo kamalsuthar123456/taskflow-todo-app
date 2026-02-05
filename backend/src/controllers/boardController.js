@@ -1,5 +1,5 @@
-import { Board } from "../models/Board.js";
-import { Todo } from "../models/Todo.js";
+import Board from "../models/Board.js"; // ✅ Default import
+import Todo from "../models/Todo.js";   // ✅ Default import
 
 // ✅ Get boards - ONLY user's own boards
 export const getBoards = async (req, res) => {
@@ -139,8 +139,7 @@ export const deleteBoard = async (req, res) => {
 
     // ✅ Delete all todos of this board
     const deletedTodos = await Todo.deleteMany({ 
-      boardId: id,
-      ownerId: userId  // ✅ Extra security
+      boardId: id
     });
 
     console.log(`✅ Board deleted: "${board.title}" (${deletedTodos.deletedCount} todos removed)`);

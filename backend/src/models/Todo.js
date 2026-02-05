@@ -1,56 +1,51 @@
 import mongoose from "mongoose";
 
-const todoSchema = new mongoose.Schema(
-  {
-    boardId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Board",
-      required: true,
-      index: true
-    },
-    ownerId: {
-      type: String,
-      required: true,
-      index: true  // ✅ CRITICAL: User isolation ke liye
-    },
-    title: { 
-      type: String, 
-      required: [true, "Todo title is required"],
-      trim: true,
-      maxlength: [200, "Title cannot exceed 200 characters"]
-    },
-    description: { 
-      type: String, 
-      default: "",
-      maxlength: [1000, "Description cannot exceed 1000 characters"]
-    },
-    status: {
-      type: String,
-      enum: ["todo", "in-progress", "done"],
-      default: "todo"
-    },
-    priority: {
-      type: String,
-      enum: ["low", "medium", "high"],
-      default: "medium"
-    },
-    dueDate: { 
-      type: Date,
-      default: null
-    },
-    completedAt: {
-      type: Date,
-      default: null
-    }
+const todoSchema = new mongoose.Schema({
+  boardId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Board',
+    required: true,
+    index: true
   },
-  { 
-    timestamps: true 
+  title: {
+    type: String,
+    required: [true, "Todo title is required"],
+    trim: true,
+    maxlength: [200, "Title cannot exceed 200 characters"]
+  },
+  description: {
+    type: String,
+    default: "",
+    maxlength: [1000, "Description cannot exceed 1000 characters"]
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high'],
+    default: 'medium'
+  },
+  status: {
+    type: String,
+    enum: ['todo', 'in-progress', 'done'],
+    default: 'todo'
+  },
+  // ✅ Track completion timestamp
+  completedAt: {
+    type: Date,
+    default: null
+  },
+  order: {
+    type: Number,
+    default: 0
   }
-);
+}, {
+  timestamps: true
+});
 
-// ✅ Compound indexes for fast queries
-todoSchema.index({ ownerId: 1, boardId: 1 });
-todoSchema.index({ ownerId: 1, status: 1 });
-todoSchema.index({ boardId: 1, createdAt: -1 });
+// Indexes for faster queries
+todoSchema.index({ boardId: 1, order: 1 });
+todoSchema.index({ boardId: 1, status: 1 });
+todoSchema.index({ boardId: 1, completedAt: 1 });
 
-export const Todo = mongoose.model("Todo", todoSchema);
+// ✅ FIXED: Use default export
+const Todo = mongoose.model("Todo", todoSchema);
+export default Todo;

@@ -56,13 +56,21 @@ export function useTasks() {
         
         // Transform backend todos to match Dashboard format
         const transformedTasks = todos.map(todo => ({
-          id: todo._id,
-          title: todo.title,
-          completed: todo.status === 'done',
-          priority: todo.priority || 'medium',
-          status: todo.status,
-          boardId: todo.boardId,
-        }));
+            id: todo._id,
+            title: todo.title,
+            description: todo.description || '', // ✅ Include description
+            completed: todo.status === 'done', // ✅ CRITICAL: Map status to completed
+            priority: todo.priority || 'medium',
+            status: todo.status,
+            boardId: todo.boardId,
+            completedAt: todo.completedAt // ✅ Include completion timestamp
+            }));
+
+            console.log(`✅ Transformed tasks:`, {
+            total: transformedTasks.length,
+            completed: transformedTasks.filter(t => t.completed).length,
+            active: transformedTasks.filter(t => !t.completed).length
+            });
 
         setTasks(transformedTasks);
         console.log(`✅ Loaded ${transformedTasks.length} tasks`);

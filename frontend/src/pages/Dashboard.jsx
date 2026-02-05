@@ -10,11 +10,15 @@ import {
   X,
   ListTodo,
   Plus,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  FileText
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
-import { useTasks } from "../hooks/useTasks";  // ✅ ADDED
+import { useTasks } from "../hooks/useTasks";
+import { useStreak } from "../hooks/useStreak"; // ✅ Add this import
 import AnimatedIcon from "../components/AnimatedIcon";
 import { 
   getTimeBasedIcon, 
@@ -41,23 +45,24 @@ function startOfDay(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-function getStreakDays(completionsByDay) {
-  const today = startOfDay(new Date());
-  let streak = 0;
-  for (let i = 0; i < 365; i++) {
-    const day = new Date(today);
-    day.setDate(today.getDate() - i);
-    const key = formatDateKey(day);
-    if (completionsByDay[key]) streak += 1;
-    else break;
-  }
-  return streak;
-}
+// ❌ REMOVED: This function is no longer needed (streak comes from backend)
+// function getStreakDays(completionsByDay) {
+//   const today = startOfDay(new Date());
+//   let streak = 0;
+//   for (let i = 0; i < 365; i++) {
+//     const day = new Date(today);
+//     day.setDate(today.getDate() - i);
+//     const key = formatDateKey(day);
+//     if (completionsByDay[key]) streak += 1;
+//     else break;
+//   }
+//   return streak;
+// }
 
 const spring = { type: "spring", stiffness: 420, damping: 34, mass: 0.7 };
 
 // ========================================
-// 🎨 UI COMPONENTS
+// 🎨 UI COMPONENTS (UNCHANGED)
 // ========================================
 
 function SceneCard({ children, className }) {
@@ -166,7 +171,7 @@ function ModalShell({ open, onClose, title, description, children }) {
             exit={{ opacity: 0 }}
           />
           <motion.div
-            className="relative w-full max-w-lg"
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             initial={{ opacity: 0, y: 18, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 18, scale: 0.98 }}
@@ -194,9 +199,9 @@ function ModalShell({ open, onClose, title, description, children }) {
   );
 }
 
-// Add Task Modal
 function AddTaskModal({ open, onClose, onAdd }) {
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
   const [submitting, setSubmitting] = useState(false);
 
@@ -207,8 +212,13 @@ function AddTaskModal({ open, onClose, onAdd }) {
     
     setSubmitting(true);
     try {
-      await onAdd({ title: t, priority });
+      await onAdd({ 
+        title: t, 
+        description: description.trim(),
+        priority 
+      });
       setTitle("");
+      setDescription("");
       setPriority("medium");
       onClose();
     } catch (error) {
@@ -224,12 +234,12 @@ function AddTaskModal({ open, onClose, onAdd }) {
       open={open}
       onClose={onClose}
       title="Create New Task"
-      description="Give it a title and pick priority."
+      description="Add a task with details to stay organized."
     >
       <form className="space-y-4" onSubmit={submit}>
         <div>
           <label className="text-xs font-semibold text-white/70" htmlFor="taskTitle">
-            Task title
+            Task title *
           </label>
           <div className="mt-2">
             <input
@@ -245,7 +255,34 @@ function AddTaskModal({ open, onClose, onAdd }) {
                 submitting && "opacity-50 cursor-not-allowed"
               )}
               autoFocus
+              required
             />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-white/70" htmlFor="taskDescription">
+            Description (optional)
+          </label>
+          <div className="mt-2">
+            <textarea
+              id="taskDescription"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Add more details about this task..."
+              disabled={submitting}
+              rows={3}
+              className={cx(
+                "w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3",
+                "text-sm text-white placeholder:text-white/40",
+                "outline-none focus:ring-4 focus:ring-violet-500/20 focus:border-violet-400/30 transition",
+                "resize-none",
+                submitting && "opacity-50 cursor-not-allowed"
+              )}
+            />
+          </div>
+          <div className="mt-1 text-xs text-white/50">
+            {description.length}/500 characters
           </div>
         </div>
 
@@ -279,7 +316,14 @@ function AddTaskModal({ open, onClose, onAdd }) {
           <div>
             <div className="text-xs font-semibold text-white/70">Preview</div>
             <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-              <div className="text-sm font-semibold">{title || "Your task title"}</div>
+              <div className="text-sm font-semibold line-clamp-1">
+                {title || "Your task title"}
+              </div>
+              {description && (
+                <div className="mt-1 text-xs text-white/60 line-clamp-2">
+                  {description}
+                </div>
+              )}
               <div className="mt-2"><PriorityPill value={priority} /></div>
             </div>
           </div>
@@ -296,11 +340,14 @@ function AddTaskModal({ open, onClose, onAdd }) {
           </button>
           <motion.button
             whileTap={{ scale: 0.98 }}
-            disabled={submitting}
-            className="rounded-xl px-4 py-2 text-sm font-semibold bg-violet-500/90 hover:bg-violet-500 text-white shadow-[0_12px_30px_rgba(139,92,246,0.35)] transition disabled:opacity-50"
+            disabled={submitting || !title.trim()}
+            className={cx(
+              "rounded-xl px-4 py-2 text-sm font-semibold bg-violet-500/90 hover:bg-violet-500 text-white shadow-[0_12px_30px_rgba(139,92,246,0.35)] transition",
+              (submitting || !title.trim()) && "opacity-50 cursor-not-allowed"
+            )}
             type="submit"
           >
-            {submitting ? 'Creating...' : 'Create'}
+            {submitting ? 'Creating...' : 'Create Task'}
           </motion.button>
         </div>
       </form>
@@ -308,15 +355,14 @@ function AddTaskModal({ open, onClose, onAdd }) {
   );
 }
 
-// Habit Modal
 function AddHabitModal({ open, onClose, onAdd }) {
   const habitTypes = [
-    { id: 'gym', name: 'Gym Workout', color: 'from-red-500 to-orange-500', emoji: '💪' },
-    { id: 'running', name: 'Running', color: 'from-green-500 to-emerald-500', emoji: '🏃' },
-    { id: 'coding', name: 'Coding', color: 'from-blue-500 to-cyan-500', emoji: '💻' },
-    { id: 'reading', name: 'Reading', color: 'from-purple-500 to-pink-500', emoji: '📚' },
-    { id: 'meditation', name: 'Meditation', color: 'from-indigo-500 to-purple-500', emoji: '🧘' },
-    { id: 'meal', name: 'Healthy Meal', color: 'from-yellow-500 to-orange-500', emoji: '🥗' }
+    { id: 'gym', name: 'Gym Workout', color: 'from-red-500 to-orange-500', emoji: '💪', desc: 'Complete your daily workout session' },
+    { id: 'running', name: 'Running', color: 'from-green-500 to-emerald-500', emoji: '🏃', desc: 'Go for a morning or evening run' },
+    { id: 'coding', name: 'Coding', color: 'from-blue-500 to-cyan-500', emoji: '💻', desc: 'Practice coding or work on projects' },
+    { id: 'reading', name: 'Reading', color: 'from-purple-500 to-pink-500', emoji: '📚', desc: 'Read for at least 30 minutes' },
+    { id: 'meditation', name: 'Meditation', color: 'from-indigo-500 to-purple-500', emoji: '🧘', desc: 'Meditate and practice mindfulness' },
+    { id: 'meal', name: 'Healthy Meal', color: 'from-yellow-500 to-orange-500', emoji: '🥗', desc: 'Prepare and eat a nutritious meal' }
   ];
 
   return (
@@ -324,7 +370,7 @@ function AddHabitModal({ open, onClose, onAdd }) {
       open={open}
       onClose={onClose}
       title="Add Daily Habit"
-      description="Pick a template to create a task instantly."
+      description="Pick a habit template to create a task instantly."
     >
       <div className="grid grid-cols-2 gap-3">
         {habitTypes.map((type, index) => (
@@ -344,7 +390,7 @@ function AddHabitModal({ open, onClose, onAdd }) {
             <div className="flex flex-col items-center gap-2">
               <div className="text-3xl">{type.emoji}</div>
               <span className="text-sm font-medium text-white text-center">{type.name}</span>
-              <span className="text-[10px] text-white/70">Tap to add</span>
+              <span className="text-[10px] text-white/70 text-center">{type.desc}</span>
             </div>
             <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/20 border border-white/10 flex items-center justify-center">
               <Plus className="w-3 h-3 text-white" />
@@ -363,9 +409,11 @@ function AddHabitModal({ open, onClose, onAdd }) {
   );
 }
 
-// Task Row
 function TaskRow({ task, onToggle, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
   const done = !!task.completed;
+  const hasDescription = task.description && task.description.trim().length > 0;
+
   return (
     <motion.div
       layout
@@ -381,7 +429,7 @@ function TaskRow({ task, onToggle, onDelete }) {
           onClick={() => onToggle(task.id)}
           className={cx(
             "mt-0.5 h-10 w-10 rounded-xl border border-white/10 bg-black/20",
-            "hover:bg-white/5 transition flex items-center justify-center",
+            "hover:bg-white/5 transition flex items-center justify-center flex-shrink-0",
             "shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
           )}
         >
@@ -394,13 +442,53 @@ function TaskRow({ task, onToggle, onDelete }) {
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className={cx("text-sm sm:text-base font-semibold tracking-tight", done && "line-through text-white/50")}>
+            <div className="min-w-0 flex-1">
+              <div className={cx(
+                "text-sm sm:text-base font-semibold tracking-tight",
+                done && "line-through text-white/50"
+              )}>
                 {task.title}
               </div>
+
+              {hasDescription && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="mt-2 inline-flex items-center gap-1 text-xs text-white/60 hover:text-white/80 transition"
+                >
+                  <FileText className="h-3 w-3" />
+                  {expanded ? 'Hide details' : 'Show details'}
+                  {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+              )}
+
+              <AnimatePresence>
+                {expanded && hasDescription && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-2 p-3 rounded-xl border border-white/10 bg-black/20">
+                      <div className="text-xs text-white/50 mb-1">Description:</div>
+                      <div className="text-sm text-white/70 whitespace-pre-wrap">
+                        {task.description}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <PriorityPill value={task.priority} />
                 <span className="text-[11px] text-white/45">{done ? "Completed" : "Active"}</span>
+                {hasDescription && !expanded && (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-white/45">
+                    <FileText className="h-3 w-3" />
+                    Has notes
+                  </span>
+                )}
               </div>
             </div>
 
@@ -409,7 +497,7 @@ function TaskRow({ task, onToggle, onDelete }) {
               className={cx(
                 "opacity-0 group-hover:opacity-100 transition",
                 "h-10 w-10 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-rose-500/10 hover:border-rose-400/20",
-                "flex items-center justify-center"
+                "flex items-center justify-center flex-shrink-0"
               )}
             >
               <Trash2 className="h-4 w-4 text-white/70 group-hover:text-rose-200" />
@@ -429,9 +517,11 @@ const Dashboard = () => {
   const { user } = useAuth();
   const username = user?.email?.split('@')[0] || 'Guest';
 
-  // ✅ USE useTasks HOOK (replaces localStorage)
+  // ✅ Tasks hook
   const {
     tasks,
+    boards,
+    defaultBoard,
     loading: tasksLoading,
     error: tasksError,
     addTask: addTaskAPI,
@@ -441,45 +531,104 @@ const Dashboard = () => {
     reload: reloadTasks,
   } = useTasks();
 
-  // UI state
+  // ✅ Streak hook (from backend)
+  const {
+    streak,
+    completionsByDay,
+    loading: streakLoading,
+    error: streakError,
+    reloadStreak
+  } = useStreak();
+
   const [taskFilter, setTaskFilter] = useState("all");
   const [taskQuery, setTaskQuery] = useState("");
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [isHabitOpen, setIsHabitOpen] = useState(false);
-  
-  // Streak tracking (keep in localStorage for now)
-  const [completionsByDay, setCompletionsByDay] = useState(() => {
-    const saved = localStorage.getItem('completions-by-day');
-    if (saved) return JSON.parse(saved);
-    const t = new Date();
-    const y = new Date();
-    y.setDate(t.getDate() - 1);
-    return {
-      [formatDateKey(t)]: true,
-      [formatDateKey(y)]: true,
-    };
-  });
 
-  // Save completions
-  useEffect(() => {
-    localStorage.setItem('completions-by-day', JSON.stringify(completionsByDay));
-  }, [completionsByDay]);
+  // ============================================
+  // ✅ REAL-TIME TRACKING EFFECTS
+  // ============================================
 
-  // Preload icons
+  // 1️⃣ Preload dashboard icons on mount
   useEffect(() => {
+    console.log('🎨 Preloading dashboard icons...');
     preloadAllDashboardIcons().catch(() => {});
   }, []);
 
-  // Stats
+  // 2️⃣ Track stats changes in real-time
+  useEffect(() => {
+    const completedCount = tasks.filter(t => t.completed).length;
+    const activeCount = tasks.filter(t => !t.completed).length;
+    
+    console.log('📊 Stats Dashboard Update:', {
+      totalTasks: tasks.length,
+      completedTasks: completedCount,
+      activeTasks: activeCount,
+      currentStreak: streak,
+      timestamp: new Date().toLocaleTimeString('en-IN', { 
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    });
+
+    // ✅ Log streak icon being used
+    if (streak !== undefined) {
+      const streakIcon = getStreakIcon(streak);
+      console.log(`🔥 Current streak icon: ${streakIcon.label} (${streak} days)`);
+    }
+  }, [tasks, streak]);
+
+  // 3️⃣ Hourly refresh for time-based icon updates
+  useEffect(() => {
+    const checkAndLogTimeIcon = () => {
+      const timeIcon = getTimeBasedIcon();
+      console.log(`⏰ Time-based icon refresh: ${timeIcon.label} at ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+    };
+
+    // Log current time icon immediately
+    checkAndLogTimeIcon();
+
+    // Set up hourly refresh
+    const interval = setInterval(() => {
+      checkAndLogTimeIcon();
+      // Force a small state update to trigger re-render
+      setTaskFilter(prev => prev); // No-op update to trigger re-render
+    }, 60 * 60 * 1000); // Every hour
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // 4️⃣ Monitor streak changes and reload
+  useEffect(() => {
+    if (streak > 0) {
+      console.log(`🎯 Streak milestone: ${streak} day${streak === 1 ? '' : 's'}!`);
+      
+      // Show console celebration for milestones
+      if (streak === 3) console.log('🎉 3-day streak! Keep it up!');
+      if (streak === 7) console.log('🔥 One week streak! You\'re on fire!');
+      if (streak === 14) console.log('🚀 Two week streak! Unstoppable!');
+      if (streak === 30) console.log('🏅 30-day streak! Champion!');
+      if (streak === 100) console.log('🏆 100-day streak! LEGENDARY!');
+    }
+  }, [streak]);
+
+  // ============================================
+  // 📊 COMPUTED STATS
+  // ============================================
+
+  // ✅ FIXED: Use streak from hook (not local calculation)
   const stats = useMemo(() => {
     const total = tasks.length;
     const done = tasks.filter((t) => t.completed).length;
     const active = total - done;
-    const streak = getStreakDays(completionsByDay);
+    
+    console.log(`📈 Stats computed: Total=${total}, Active=${active}, Done=${done}, Streak=${streak}`);
+    
     return { total, done, active, streak };
-  }, [tasks, completionsByDay]);
+  }, [tasks, streak]);
 
-  // Filtered tasks
   const filteredTasks = useMemo(() => {
     const q = taskQuery.trim().toLowerCase();
     return tasks
@@ -488,79 +637,107 @@ const Dashboard = () => {
         if (taskFilter === "done") return t.completed;
         return true;
       })
-      .filter((t) => (q ? t.title.toLowerCase().includes(q) : true));
+      .filter((t) => (q ? t.title.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) : true));
   }, [tasks, taskFilter, taskQuery]);
 
-  // ✅ ADD TASK (calls API)
-  async function addTask({ title, priority }) {
+  // ============================================
+  // 🎬 ACTION HANDLERS
+  // ============================================
+
+  async function addTask({ title, description, priority }) {
     try {
-      await addTaskAPI({ title, priority });
+      console.log(`➕ Adding task: "${title}"`);
+      await addTaskAPI({ title, description, priority });
+      console.log(`✅ Task added successfully`);
     } catch (error) {
-      console.error('Failed to add task:', error);
+      console.error('❌ Failed to add task:', error);
     }
   }
 
-  // ✅ ADD HABIT (calls API)
   async function addHabitAsTask(habitType) {
     try {
+      console.log(`➕ Adding habit: ${habitType.name}`);
       await addTaskAPI({ 
         title: `${habitType.name} 🎯`, 
+        description: habitType.desc || '',
         priority: 'medium'
       });
+      console.log(`✅ Habit added successfully`);
     } catch (error) {
-      console.error('Failed to add habit:', error);
+      console.error('❌ Failed to add habit:', error);
     }
   }
 
-  // ✅ TOGGLE TASK (calls API)
+  // ✅ FIXED: Toggle with streak reload
   async function toggleTask(id) {
     try {
+      const task = tasks.find(t => t.id === id);
+      const newStatus = !task?.completed;
+      
+      console.log(`🔄 Toggling task: "${task?.title}" → ${newStatus ? 'DONE' : 'ACTIVE'}`);
+      
       await toggleTaskAPI(id);
       
-      // Update streak tracking
-      const task = tasks.find(t => t.id === id);
-      if (task && !task.completed) {
-        const key = formatDateKey(new Date());
-        setCompletionsByDay((m) => ({ ...m, [key]: true }));
+      console.log(`✅ Task toggled successfully`);
+      
+      // ✅ Reload streak after completing task
+      if (newStatus) {
+        console.log(`🔥 Task completed! Reloading streak...`);
+        setTimeout(() => {
+          reloadStreak();
+        }, 300);
       }
     } catch (error) {
-      console.error('Failed to toggle task:', error);
+      console.error('❌ Failed to toggle task:', error);
     }
   }
 
-  // ✅ DELETE TASK (calls API)
   async function deleteTask(id) {
     try {
+      const task = tasks.find(t => t.id === id);
+      console.log(`🗑️  Deleting task: "${task?.title}"`);
+      
       await deleteTaskAPI(id);
+      console.log(`✅ Task deleted successfully`);
     } catch (error) {
-      console.error('Failed to delete task:', error);
+      console.error('❌ Failed to delete task:', error);
     }
   }
 
-  // ✅ CLEAR COMPLETED (calls API)
+  // ✅ FIXED: Clear completed with streak reload
   async function clearCompleted() {
     try {
+      const completedCount = tasks.filter(t => t.completed).length;
+      console.log(`🧹 Clearing ${completedCount} completed task(s)...`);
+      
       await clearCompletedAPI();
+      
+      console.log(`✅ Completed tasks cleared`);
+      
+      // ✅ Reload streak after clearing
+      setTimeout(() => {
+        console.log(`🔥 Reloading streak after clear...`);
+        reloadStreak();
+      }, 300);
     } catch (error) {
-      console.error('Failed to clear completed:', error);
+      console.error('❌ Failed to clear completed:', error);
     }
   }
 
-  // ✅ LOADING STATE
-  if (tasksLoading) {
+  // Rest of your Dashboard component remains the same...
+  if (tasksLoading || streakLoading) {
     return (
       <div className="min-h-screen bg-[radial-gradient(1200px_600px_at_50%_20%,rgba(168,85,247,0.22),transparent_60%),radial-gradient(900px_600px_at_80%_10%,rgba(34,211,238,0.12),transparent_60%),radial-gradient(1000px_700px_at_20%_90%,rgba(59,130,246,0.10),transparent_55%),linear-gradient(to_bottom,rgba(2,6,23,1),rgba(3,7,18,1))] text-slate-100 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <div className="mt-4 text-xl font-bold">Loading your tasks...</div>
+          <div className="mt-4 text-xl font-bold">Loading your dashboard...</div>
           <div className="mt-2 text-sm text-white/60">Please wait</div>
         </div>
       </div>
     );
   }
 
-  // ✅ ERROR STATE
-  if (tasksError) {
+  if (tasksError || streakError) {
     return (
       <div className="min-h-screen bg-[radial-gradient(1200px_600px_at_50%_20%,rgba(168,85,247,0.22),transparent_60%),radial-gradient(900px_600px_at_80%_10%,rgba(34,211,238,0.12),transparent_60%),radial-gradient(1000px_700px_at_20%_90%,rgba(59,130,246,0.10),transparent_55%),linear-gradient(to_bottom,rgba(2,6,23,1),rgba(3,7,18,1))] text-slate-100 flex items-center justify-center">
         <SceneCard className="p-8 max-w-md">
@@ -568,10 +745,15 @@ const Dashboard = () => {
             <div className="mx-auto h-16 w-16 rounded-2xl border border-red-400/20 bg-red-500/10 flex items-center justify-center">
               <AlertCircle className="h-8 w-8 text-red-400" />
             </div>
-            <div className="mt-4 text-xl font-bold text-red-400">Error Loading Tasks</div>
-            <div className="mt-2 text-sm text-white/60">{tasksError}</div>
+            <div className="mt-4 text-xl font-bold text-red-400">Error Loading Data</div>
+            <div className="mt-2 text-sm text-white/60">
+              {tasksError || streakError}
+            </div>
             <button 
-              onClick={reloadTasks}
+              onClick={() => {
+                reloadTasks();
+                reloadStreak();
+              }}
               className="mt-6 px-6 py-3 bg-violet-500 hover:bg-violet-600 rounded-xl font-semibold transition"
             >
               Try Again
@@ -588,7 +770,6 @@ const Dashboard = () => {
       <Navbar onAddTaskClick={() => setIsAddTaskOpen(true)} />
 
       <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
-        {/* Welcome Section */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -642,7 +823,6 @@ const Dashboard = () => {
           </SceneCard>
         </motion.div>
 
-        {/* Streak Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -709,14 +889,12 @@ const Dashboard = () => {
           </SceneCard>
         </motion.div>
 
-        {/* Tasks Grid */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="grid grid-cols-1 lg:grid-cols-12 gap-5"
         >
-          {/* Filters */}
           <div className="lg:col-span-4">
             <SceneCard className="p-5 sm:p-6">
               <div className="flex items-center justify-between">
@@ -766,16 +944,15 @@ const Dashboard = () => {
               <div className="mt-5">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="text-xs text-white/60">Tip</div>
-                  <div className="mt-1 text-sm font-semibold">Tap tasks to complete</div>
+                  <div className="mt-1 text-sm font-semibold">Add descriptions to tasks</div>
                   <div className="mt-1 text-sm text-white/65">
-                    Completing at least one task each day keeps your streak alive.
+                    Click "Show details" on any task to view its description.
                   </div>
                 </div>
               </div>
             </SceneCard>
           </div>
 
-          {/* Tasks List */}
           <div className="lg:col-span-8">
             <SceneCard className="p-5 sm:p-6">
               <div className="flex items-center justify-between gap-3">
@@ -823,7 +1000,6 @@ const Dashboard = () => {
         </footer>
       </main>
 
-      {/* Modals */}
       <AddTaskModal open={isAddTaskOpen} onClose={() => setIsAddTaskOpen(false)} onAdd={addTask} />
       <AddHabitModal open={isHabitOpen} onClose={() => setIsHabitOpen(false)} onAdd={addHabitAsTask} />
     </div>

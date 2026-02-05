@@ -146,6 +146,11 @@ export const todoAPI = {
     const response = await api.delete(`/api/boards/${boardId}/todos/${todoId}`);
     return response.data;
   },
+
+   getStreak: async () => {
+    const response = await api.get('/api/todos/streak');
+    return response.data;
+   }
 };
 
 export default api;

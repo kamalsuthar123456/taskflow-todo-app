@@ -15,13 +15,15 @@ const boardSchema = new mongoose.Schema({
   ownerId: {
     type: String,
     required: true,
-    index: true  // ✅ CRITICAL: Fast user queries
+    index: true
   }
 }, {
   timestamps: true
 });
 
-// ✅ Index for faster queries
+// Index for faster queries
 boardSchema.index({ ownerId: 1, createdAt: -1 });
 
-export const Board = mongoose.model("Board", boardSchema);
+// ✅ FIXED: Use default export
+const Board = mongoose.model("Board", boardSchema);
+export default Board;

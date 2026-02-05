@@ -49,10 +49,13 @@ app.get("/", (req, res) => {
   });
 });
 
-// ✅ API ROUTES - Must be mounted at /api
+// ✅ API ROUTES
 app.use("/api/users", userRoutes);
 app.use("/api/boards", boardRoutes);
-app.use("/api/boards/:boardId/todos", todoRoutes);
+
+// ✅ CRITICAL: Mount todo routes at BOTH paths
+app.use("/api/boards/:boardId/todos", todoRoutes); // For CRUD with board context
+app.use("/api/todos", todoRoutes); // ✅ NEW: For /streak endpoint
 
 // ============================================
 // ERROR HANDLERS
@@ -68,7 +71,11 @@ app.use((req, res) => {
       "GET /health",
       "POST /api/users/sync",
       "GET /api/boards",
-      "POST /api/boards"
+      "POST /api/boards",
+      "GET /api/boards/:boardId/todos",
+      "POST /api/boards/:boardId/todos",
+      "PATCH /api/boards/:boardId/todos/:id/toggle",
+      "GET /api/todos/streak"
     ]
   });
 });
@@ -116,7 +123,9 @@ connectDB()
       console.log('   ✅ GET    /api/boards');
       console.log('   ✅ POST   /api/boards');
       console.log('   ✅ GET    /api/boards/:boardId/todos');
-      console.log('   ✅ POST   /api/boards/:boardId/todos\n');
+      console.log('   ✅ POST   /api/boards/:boardId/todos');
+      console.log('   ✅ PATCH  /api/boards/:boardId/todos/:id/toggle');
+      console.log('   ✅ GET    /api/todos/streak\n');
     });
   })
   .catch((err) => {

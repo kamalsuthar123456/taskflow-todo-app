@@ -1,38 +1,30 @@
-import { Todo } from "../models/Todo.js";
-import { Board } from "../models/Board.js";
+import Todo from "../models/Todo.js"; // ✅ Default import
+import Board from "../models/Board.js"; // ✅ Default import
 
-// ✅ Get todos for a board - WITH owner verification
+// Get todos by board
 export const getTodosByBoard = async (req, res) => {
   try {
     const { boardId } = req.params;
     const userId = req.user.id;
 
-    console.log(`📝 Fetching todos for board: ${boardId}, user: ${userId.substring(0, 8)}...`);
-
-    // ✅ Step 1: Verify board ownership
+    // Verify board ownership
     const board = await Board.findOne({ _id: boardId, ownerId: userId });
-    
     if (!board) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
-        message: "Unauthorized - Board not found or access denied"
+        message: "Board not found"
       });
     }
 
-    // ✅ Step 2: Get todos (double security with ownerId)
-    const todos = await Todo.find({ 
-      boardId, 
-      ownerId: userId  // ✅ Extra security layer
-    })
-    .sort({ createdAt: -1 })
-    .lean();
+    const todos = await Todo.find({ boardId })
+      .sort({ order: 1, createdAt: -1 })
+      .lean();
 
-    console.log(`✅ Found ${todos.length} todos for board: ${board.title}`);
+    console.log(`✅ Found ${todos.length} todos for board: ${boardId}`);
 
     res.json({
       success: true,
       count: todos.length,
-      boardTitle: board.title,
       data: todos
     });
   } catch (error) {
@@ -45,26 +37,22 @@ export const getTodosByBoard = async (req, res) => {
   }
 };
 
-// ✅ Create todo - WITH owner verification
+// Create todo
 export const createTodo = async (req, res) => {
   try {
     const { boardId } = req.params;
-    const { title, description, status, priority, dueDate } = req.body;
+    const { title, description, priority, status } = req.body;
     const userId = req.user.id;
 
-    console.log(`📝 Creating todo for board: ${boardId}, user: ${userId.substring(0, 8)}...`);
-
-    // ✅ Step 1: Verify board ownership
+    // Verify board ownership
     const board = await Board.findOne({ _id: boardId, ownerId: userId });
-    
     if (!board) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
-        message: "Unauthorized - Board not found or access denied"
+        message: "Board not found"
       });
     }
 
-    // ✅ Step 2: Validate title
     if (!title || title.trim().length === 0) {
       return res.status(400).json({
         success: false,
@@ -72,18 +60,15 @@ export const createTodo = async (req, res) => {
       });
     }
 
-    // ✅ Step 3: Create todo with ownerId
     const todo = await Todo.create({
       boardId,
-      ownerId: userId,  // ✅ CRITICAL - User isolation
       title: title.trim(),
       description: description || "",
-      status: status || "todo",
       priority: priority || "medium",
-      dueDate: dueDate || null
+      status: status || "todo"
     });
 
-    console.log(`✅ Todo created: "${todo.title}" in board "${board.title}"`);
+    console.log(`✅ Todo created: "${todo.title}"`);
 
     res.status(201).json({
       success: true,
@@ -91,14 +76,6 @@ export const createTodo = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Create todo error:", error);
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        success: false,
-        message: Object.values(error.errors).map(e => e.message).join(', ')
-      });
-    }
-    
     res.status(500).json({
       success: false,
       message: "Error creating todo",
@@ -107,50 +84,39 @@ export const createTodo = async (req, res) => {
   }
 };
 
-// ✅ Update todo - WITH owner verification
+// Update todo
 export const updateTodo = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { title, description, status, priority, dueDate } = req.body;
+    const { boardId, id } = req.params;
+    const { title, description, priority, status } = req.body;
     const userId = req.user.id;
 
-    console.log(`📝 Updating todo: ${id}, user: ${userId.substring(0, 8)}...`);
+    // Verify board ownership
+    const board = await Board.findOne({ _id: boardId, ownerId: userId });
+    if (!board) {
+      return res.status(404).json({
+        success: false,
+        message: "Board not found"
+      });
+    }
 
-    // ✅ Step 1: Find todo and verify ownership
-    const todo = await Todo.findOne({ _id: id, ownerId: userId });
-    
+    const todo = await Todo.findOneAndUpdate(
+      { _id: id, boardId },
+      { 
+        title: title?.trim(),
+        description,
+        priority,
+        status 
+      },
+      { new: true, runValidators: true }
+    );
+
     if (!todo) {
       return res.status(404).json({
         success: false,
-        message: "Todo not found or unauthorized"
+        message: "Todo not found"
       });
     }
-
-    // ✅ Step 2: Verify board ownership (extra security)
-    const board = await Board.findOne({ _id: todo.boardId, ownerId: userId });
-    
-    if (!board) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized - Board access denied"
-      });
-    }
-
-    // ✅ Step 3: Update fields
-    if (title) todo.title = title.trim();
-    if (description !== undefined) todo.description = description;
-    if (status) todo.status = status;
-    if (priority) todo.priority = priority;
-    if (dueDate !== undefined) todo.dueDate = dueDate;
-    
-    // ✅ Auto-set completedAt when status changes to done
-    if (status === 'done' && todo.status !== 'done') {
-      todo.completedAt = new Date();
-    } else if (status && status !== 'done') {
-      todo.completedAt = null;
-    }
-    
-    await todo.save();
 
     console.log(`✅ Todo updated: "${todo.title}"`);
 
@@ -168,24 +134,27 @@ export const updateTodo = async (req, res) => {
   }
 };
 
-// ✅ Delete todo - WITH owner verification
+// Delete todo
 export const deleteTodo = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { boardId, id } = req.params;
     const userId = req.user.id;
 
-    console.log(`📝 Deleting todo: ${id}, user: ${userId.substring(0, 8)}...`);
+    // Verify board ownership
+    const board = await Board.findOne({ _id: boardId, ownerId: userId });
+    if (!board) {
+      return res.status(404).json({
+        success: false,
+        message: "Board not found"
+      });
+    }
 
-    // ✅ Find and delete in one operation (with ownership check)
-    const todo = await Todo.findOneAndDelete({ 
-      _id: id, 
-      ownerId: userId  // ✅ Security check
-    });
-    
+    const todo = await Todo.findOneAndDelete({ _id: id, boardId });
+
     if (!todo) {
       return res.status(404).json({
         success: false,
-        message: "Todo not found or unauthorized"
+        message: "Todo not found"
       });
     }
 
@@ -197,51 +166,6 @@ export const deleteTodo = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error deleting todo",
-      error: error.message
-    });
-  }
-};
-
-// ✅ Toggle todo status (bonus feature)
-export const toggleTodoStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    console.log(`📝 Toggling todo status: ${id}`);
-
-    // ✅ Find todo with ownership check
-    const todo = await Todo.findOne({ _id: id, ownerId: userId });
-
-    if (!todo) {
-      return res.status(404).json({
-        success: false,
-        message: "Todo not found or unauthorized"
-      });
-    }
-
-    // ✅ Toggle status
-    if (todo.status === 'done') {
-      todo.status = 'todo';
-      todo.completedAt = null;
-    } else {
-      todo.status = 'done';
-      todo.completedAt = new Date();
-    }
-
-    await todo.save();
-
-    console.log(`✅ Todo status toggled: "${todo.title}" → ${todo.status}`);
-
-    res.json({
-      success: true,
-      data: todo
-    });
-  } catch (error) {
-    console.error("❌ Toggle todo error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error toggling todo status",
       error: error.message
     });
   }
