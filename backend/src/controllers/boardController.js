@@ -1,27 +1,22 @@
-import Board from "../models/Board.js"; // ✅ Default import
-import Todo from "../models/Todo.js";   // ✅ Default import
+import Board from "../models/Board.js";
+import Todo from "../models/Todo.js";
 
 // ✅ Get boards - ONLY user's own boards
 export const getBoards = async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    console.log(`📋 Fetching boards for user: ${userId.substring(0, 8)}...`);
-    
+        
     // ✅ Filter by ownerId
     const boards = await Board.find({ ownerId: userId })
       .sort({ createdAt: -1 })
       .lean();
-    
-    console.log(`✅ Found ${boards.length} boards`);
-    
+        
     res.json({
       success: true,
       count: boards.length,
       data: boards
     });
   } catch (error) {
-    console.error("❌ Get boards error:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching boards",
@@ -35,9 +30,7 @@ export const createBoard = async (req, res) => {
   try {
     const { title, description } = req.body;
     const userId = req.user.id;
-    
-    console.log(`📋 Creating board for: ${userId.substring(0, 8)}...`);
-    
+      
     if (!title || title.trim().length === 0) {
       return res.status(400).json({
         success: false,
@@ -50,8 +43,6 @@ export const createBoard = async (req, res) => {
       description: description || "",
       ownerId: userId  // ✅ CRITICAL
     });
-
-    console.log(`✅ Board created: "${board.title}"`);
 
     res.status(201).json({
       success: true,
@@ -102,7 +93,6 @@ export const updateBoard = async (req, res) => {
       });
     }
 
-    console.log(`✅ Board updated: "${board.title}"`);
 
     res.json({
       success: true,
@@ -141,8 +131,6 @@ export const deleteBoard = async (req, res) => {
     const deletedTodos = await Todo.deleteMany({ 
       boardId: id
     });
-
-    console.log(`✅ Board deleted: "${board.title}" (${deletedTodos.deletedCount} todos removed)`);
 
     res.status(204).send();
   } catch (error) {

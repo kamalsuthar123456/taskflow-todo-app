@@ -1,4 +1,4 @@
-/* FORCE Toast Container Position */
+/* ✨ PREMIUM Toast Container */
 div[data-hot-toast] {
   position: fixed !important;
   top: 80px !important;
@@ -6,9 +6,45 @@ div[data-hot-toast] {
   z-index: 9999 !important;
 }
 
+/* ✨ Toast Styles */
+[data-hot-toast] > div {
+  @apply backdrop-blur-xl bg-slate-900/90 border border-white/20 shadow-2xl shadow-black/50 rounded-2xl;
+}
+
+/* ✨ Toast Animation */
+@keyframes toast-enter {
+  from {
+    transform: translateX(100%) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-exit {
+  from {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%) scale(0.9);
+    opacity: 0;
+  }
+}
+
+[data-hot-toast] > div[data-visible="true"] {
+  animation: toast-enter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-hot-toast] > div[data-visible="false"] {
+  animation: toast-exit 0.3s ease-in;
+}
+
 @media (max-width: 640px) {
   div[data-hot-toast] {
-    top: 60px !important;
+    top: 70px !important;
     right: 10px !important;
     left: 10px !important;
   }

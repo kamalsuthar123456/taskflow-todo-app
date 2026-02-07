@@ -5,7 +5,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    index: true
   },
   email: {
     type: String,
@@ -26,7 +25,7 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  lastLoginAt: {
+  lastLogin: {
     type: Date,
     default: Date.now
   }
@@ -37,4 +36,6 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ firebaseUid: 1 });
 userSchema.index({ email: 1 });
 
-export const User = mongoose.model("User", userSchema);
+// ✅ ONLY FIX: Change to default export
+const User = mongoose.model("User", userSchema);
+export default User;

@@ -20,15 +20,11 @@ export function useTasks() {
     try {
       setLoading(true);
       setError(null);
-
-      console.log('📥 Loading boards and tasks...');
-
       // Get all boards
       const boardsResponse = await boardAPI.getAll();
       const userBoards = boardsResponse.data || [];
       setBoards(userBoards);
 
-      console.log(`✅ Loaded ${userBoards.length} boards`);
 
       // Find or create default board
       let defaultBoardData = userBoards.find(b => b.title === 'My Tasks');
@@ -38,7 +34,6 @@ export function useTasks() {
       }
 
       if (!defaultBoardData) {
-        console.log('📝 Creating default board...');
         const createResponse = await boardAPI.create({
           title: 'My Tasks',
           description: 'Daily tasks and habits'
@@ -65,15 +60,7 @@ export function useTasks() {
             boardId: todo.boardId,
             completedAt: todo.completedAt // ✅ Include completion timestamp
             }));
-
-            console.log(`✅ Transformed tasks:`, {
-            total: transformedTasks.length,
-            completed: transformedTasks.filter(t => t.completed).length,
-            active: transformedTasks.filter(t => !t.completed).length
-            });
-
         setTasks(transformedTasks);
-        console.log(`✅ Loaded ${transformedTasks.length} tasks`);
       }
 
     } catch (err) {
@@ -97,8 +84,6 @@ export function useTasks() {
     }
 
     try {
-      console.log(`📝 Creating task: "${title}"`);
-
       const response = await todoAPI.create(defaultBoard._id, {
         title,
         priority: priority || 'medium',
@@ -116,8 +101,6 @@ export function useTasks() {
       };
 
       setTasks(prev => [newTask, ...prev]);
-      console.log('✅ Task created');
-
       return newTask;
     } catch (err) {
       console.error('❌ Failed to create task:', err);
@@ -130,7 +113,6 @@ export function useTasks() {
     if (!defaultBoard) return;
 
     try {
-      console.log(`🔄 Toggling task: ${taskId}`);
 
       // Optimistic update
       setTasks(prev =>
@@ -140,8 +122,6 @@ export function useTasks() {
       );
 
       await todoAPI.toggle(defaultBoard._id, taskId);
-      console.log('✅ Task toggled');
-
     } catch (err) {
       console.error('❌ Failed to toggle task:', err);
       // Revert on error
@@ -155,13 +135,11 @@ export function useTasks() {
     if (!defaultBoard) return;
 
     try {
-      console.log(`🗑️  Deleting task: ${taskId}`);
 
       // Optimistic update
       setTasks(prev => prev.filter(t => t.id !== taskId));
 
       await todoAPI.delete(defaultBoard._id, taskId);
-      console.log('✅ Task deleted');
 
     } catch (err) {
       console.error('❌ Failed to delete task:', err);
@@ -178,15 +156,12 @@ export function useTasks() {
     try {
       const completedTasks = tasks.filter(t => t.completed);
       
-      console.log(`🗑️  Clearing ${completedTasks.length} completed tasks`);
-
       // Delete all completed tasks
       await Promise.all(
         completedTasks.map(task => todoAPI.delete(defaultBoard._id, task.id))
       );
 
       setTasks(prev => prev.filter(t => !t.completed));
-      console.log('✅ Completed tasks cleared');
 
     } catch (err) {
       console.error('❌ Failed to clear completed:', err);

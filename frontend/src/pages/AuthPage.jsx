@@ -77,7 +77,9 @@ const AuthPage = () => {
             </button>
           </div>
 
-          {/* Forms */}
+          {/* ✅ REMOVED GOOGLE BUTTON FROM HERE - NOW IT'S INSIDE LoginForm/RegisterForm */}
+          
+          {/* Forms (Google button is now inside each form) */}
           {mode === "login" ? <LoginForm /> : <RegisterForm />}
         </div>
       </div>

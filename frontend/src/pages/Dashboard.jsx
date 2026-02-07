@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import toast, { Toaster } from 'react-hot-toast';
 import { 
   Search, 
   CheckCircle2, 
@@ -18,7 +19,7 @@ import {
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { useTasks } from "../hooks/useTasks";
-import { useStreak } from "../hooks/useStreak"; // ✅ Add this import
+import { useStreak } from "../hooks/useStreak";
 import AnimatedIcon from "../components/AnimatedIcon";
 import { 
   getTimeBasedIcon, 
@@ -44,20 +45,6 @@ function formatDateKey(d) {
 function startOfDay(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
-
-// ❌ REMOVED: This function is no longer needed (streak comes from backend)
-// function getStreakDays(completionsByDay) {
-//   const today = startOfDay(new Date());
-//   let streak = 0;
-//   for (let i = 0; i < 365; i++) {
-//     const day = new Date(today);
-//     day.setDate(today.getDate() - i);
-//     const key = formatDateKey(day);
-//     if (completionsByDay[key]) streak += 1;
-//     else break;
-//   }
-//   return streak;
-// }
 
 const spring = { type: "spring", stiffness: 420, damping: 34, mass: 0.7 };
 
@@ -223,7 +210,7 @@ function AddTaskModal({ open, onClose, onAdd }) {
       onClose();
     } catch (error) {
       console.error('Failed to add task:', error);
-      alert('Failed to add task. Please try again.');
+      toast.error('Failed to add task. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -551,7 +538,6 @@ const Dashboard = () => {
 
   // 1️⃣ Preload dashboard icons on mount
   useEffect(() => {
-    console.log('🎨 Preloading dashboard icons...');
     preloadAllDashboardIcons().catch(() => {});
   }, []);
 
@@ -576,7 +562,6 @@ const Dashboard = () => {
     // ✅ Log streak icon being used
     if (streak !== undefined) {
       const streakIcon = getStreakIcon(streak);
-      console.log(`🔥 Current streak icon: ${streakIcon.label} (${streak} days)`);
     }
   }, [tasks, streak]);
 
@@ -601,16 +586,63 @@ const Dashboard = () => {
   }, []);
 
   // 4️⃣ Monitor streak changes and reload
-  useEffect(() => {
+   useEffect(() => {
     if (streak > 0) {
-      console.log(`🎯 Streak milestone: ${streak} day${streak === 1 ? '' : 's'}!`);
-      
-      // Show console celebration for milestones
-      if (streak === 3) console.log('🎉 3-day streak! Keep it up!');
-      if (streak === 7) console.log('🔥 One week streak! You\'re on fire!');
-      if (streak === 14) console.log('🚀 Two week streak! Unstoppable!');
-      if (streak === 30) console.log('🏅 30-day streak! Champion!');
-      if (streak === 100) console.log('🏆 100-day streak! LEGENDARY!');
+      if (streak === 3) {
+        toast.success('🎉 3-day streak! Keep it up!', {
+          duration: 4000,
+          position: 'top-center',
+          style: {
+            background: '#10b981',
+            color: '#fff',
+            fontWeight: '600',
+          },
+        });
+      }
+      if (streak === 7) {
+        toast.success('🔥 One week streak! You\'re on fire!', {
+          duration: 4000,
+          position: 'top-center',
+          style: {
+            background: '#f59e0b',
+            color: '#fff',
+            fontWeight: '600',
+          },
+        });
+      }
+      if (streak === 14) {
+        toast.success('🚀 Two week streak! Unstoppable!', {
+          duration: 4000,
+          position: 'top-center',
+          style: {
+            background: '#3b82f6',
+            color: '#fff',
+            fontWeight: '600',
+          },
+        });
+      }
+      if (streak === 30) {
+        toast.success('🏅 30-day streak! Champion!', {
+          duration: 5000,
+          position: 'top-center',
+          style: {
+            background: '#8b5cf6',
+            color: '#fff',
+            fontWeight: '600',
+          },
+        });
+      }
+      if (streak === 100) {
+        toast.success('🏆 100-day streak! LEGENDARY!', {
+          duration: 6000,
+          position: 'top-center',
+          style: {
+            background: '#eab308',
+            color: '#000',
+            fontWeight: '700',
+          },
+        });
+      }
     }
   }, [streak]);
 
@@ -624,7 +656,6 @@ const Dashboard = () => {
     const done = tasks.filter((t) => t.completed).length;
     const active = total - done;
     
-    console.log(`📈 Stats computed: Total=${total}, Active=${active}, Done=${done}, Streak=${streak}`);
     
     return { total, done, active, streak };
   }, [tasks, streak]);
@@ -646,9 +677,7 @@ const Dashboard = () => {
 
   async function addTask({ title, description, priority }) {
     try {
-      console.log(`➕ Adding task: "${title}"`);
       await addTaskAPI({ title, description, priority });
-      console.log(`✅ Task added successfully`);
     } catch (error) {
       console.error('❌ Failed to add task:', error);
     }
@@ -656,13 +685,11 @@ const Dashboard = () => {
 
   async function addHabitAsTask(habitType) {
     try {
-      console.log(`➕ Adding habit: ${habitType.name}`);
       await addTaskAPI({ 
         title: `${habitType.name} 🎯`, 
         description: habitType.desc || '',
         priority: 'medium'
       });
-      console.log(`✅ Habit added successfully`);
     } catch (error) {
       console.error('❌ Failed to add habit:', error);
     }
@@ -673,16 +700,12 @@ const Dashboard = () => {
     try {
       const task = tasks.find(t => t.id === id);
       const newStatus = !task?.completed;
-      
-      console.log(`🔄 Toggling task: "${task?.title}" → ${newStatus ? 'DONE' : 'ACTIVE'}`);
-      
+          
       await toggleTaskAPI(id);
       
-      console.log(`✅ Task toggled successfully`);
       
       // ✅ Reload streak after completing task
       if (newStatus) {
-        console.log(`🔥 Task completed! Reloading streak...`);
         setTimeout(() => {
           reloadStreak();
         }, 300);
@@ -695,10 +718,8 @@ const Dashboard = () => {
   async function deleteTask(id) {
     try {
       const task = tasks.find(t => t.id === id);
-      console.log(`🗑️  Deleting task: "${task?.title}"`);
       
       await deleteTaskAPI(id);
-      console.log(`✅ Task deleted successfully`);
     } catch (error) {
       console.error('❌ Failed to delete task:', error);
     }
@@ -708,15 +729,11 @@ const Dashboard = () => {
   async function clearCompleted() {
     try {
       const completedCount = tasks.filter(t => t.completed).length;
-      console.log(`🧹 Clearing ${completedCount} completed task(s)...`);
       
       await clearCompletedAPI();
-      
-      console.log(`✅ Completed tasks cleared`);
-      
+          
       // ✅ Reload streak after clearing
       setTimeout(() => {
-        console.log(`🔥 Reloading streak after clear...`);
         reloadStreak();
       }, 300);
     } catch (error) {

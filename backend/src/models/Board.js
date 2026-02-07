@@ -24,6 +24,5 @@ const boardSchema = new mongoose.Schema({
 // Index for faster queries
 boardSchema.index({ ownerId: 1, createdAt: -1 });
 
-// ✅ FIXED: Use default export
 const Board = mongoose.model("Board", boardSchema);
 export default Board;

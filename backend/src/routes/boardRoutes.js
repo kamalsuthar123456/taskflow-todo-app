@@ -17,6 +17,4 @@ router.post("/", createBoard);
 router.put("/:id", updateBoard);
 router.delete("/:id", deleteBoard);
 
-console.log("✅ Board routes loaded with authentication");
-
 export default router;

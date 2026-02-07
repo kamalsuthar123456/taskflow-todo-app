@@ -1,75 +1,63 @@
-import { User } from "../models/User.js";
+import User from "../models/User.js";
 
 export const syncUser = async (req, res) => {
   try {
     const { firebaseUid, email, displayName, photoURL, emailVerified } = req.body;
 
-    console.log(`🔄 User sync request: ${email}`);
-
     if (!firebaseUid || !email) {
       return res.status(400).json({
         success: false,
-        message: "Firebase UID aur email required hai"
+        message: "Firebase UID and email are required"
       });
     }
 
-    // User dhundo
-    let user = await User.findOne({ 
-      $or: [{ firebaseUid }, { email }] 
-    });
-
-    if (user) {
-      // Update karo
-      user.firebaseUid = firebaseUid;
-      user.email = email;
-      user.displayName = displayName || user.displayName;
-      user.photoURL = photoURL || user.photoURL;
-      user.emailVerified = emailVerified;
-      user.lastLoginAt = new Date();
-      await user.save();
-
-      console.log(`✅ User UPDATED: ${email}`);
-
-      return res.json({
-        success: true,
-        message: "User updated successfully",
-        data: {
-          id: user._id,
-          firebaseUid: user.firebaseUid,
-          email: user.email
-        }
-      });
-    }
-
-    // Naya user banao
-    user = await User.create({
+    const userData = {
       firebaseUid,
       email,
-      displayName: displayName || "",
+      displayName: displayName || email.split('@')[0],
       photoURL: photoURL || "",
       emailVerified: emailVerified || false,
-      lastLoginAt: new Date()
-    });
+      lastLogin: new Date()
+    };
 
-    console.log(`✅ User CREATED: ${email}`);
+    // Use findOneAndUpdate with upsert to create or update
+    const user = await User.findOneAndUpdate(
+      { firebaseUid },
+      userData,
+      { 
+        upsert: true, 
+        new: true,
+        setDefaultsOnInsert: true
+      }
+    );
 
-    res.status(201).json({
+    // // ✅ Log Google sign-in users
+    // if (photoURL && photoURL.includes('googleusercontent')) {
+    //   console.log('✅ Google user synced:', email);
+    // } else {
+    //   console.log('✅ Email/Password user synced:', email);
+    // }
+
+    res.status(200).json({
       success: true,
-      message: "User created",
+      message: "User synced successfully",
       data: {
         id: user._id,
         firebaseUid: user.firebaseUid,
-        email: user.email
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        emailVerified: user.emailVerified
       }
     });
 
   } catch (error) {
-    console.error("❌ User sync error:", error);
+    console.error("❌ Sync user error:", error);
     
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: "User already exists"
+        message: "User already exists with different credentials"
       });
     }
 

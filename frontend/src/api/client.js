@@ -1,99 +1,167 @@
 import axios from 'axios';
 
+
 // ============================================
-// API CLIENT CONFIGURATION
+// 🔥 API CLIENT CONFIGURATION
 // ============================================
+
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 15000, // 15 seconds
 });
 
+
 // ============================================
-// REQUEST INTERCEPTOR
+// 🔥 REQUEST INTERCEPTOR
 // ============================================
+
 
 api.interceptors.request.use(
   (config) => {
-    // Get Firebase user ID from localStorage
     const userId = localStorage.getItem('userId');
     
     if (userId) {
       config.headers['x-user-id'] = userId;
-      console.log(`📤 API Request: ${config.method.toUpperCase()} ${config.url} [User: ${userId.substring(0, 8)}...]`);
-    } else {
-      console.warn('⚠️  No userId in localStorage');
     }
     
     return config;
   },
   (error) => {
-    console.error('❌ Request Error:', error);
+    console.error('❌ [API] Request Error:', error);
     return Promise.reject(error);
   }
 );
 
+
 // ============================================
-// RESPONSE INTERCEPTOR
+// 🔥 RESPONSE INTERCEPTOR (FIXED)
 // ============================================
+
 
 api.interceptors.response.use(
   (response) => {
-    console.log(`✅ API Response: ${response.config.url}`, response.data);
     return response;
   },
   (error) => {
-    console.error('❌ API Error:', {
-      url: error.config?.url,
-      status: error.response?.status,
-      message: error.response?.data?.message || error.message
-    });
+    const status = error.response?.status;
+    const message = error.response?.data?.message || error.message;
     
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401) {
-      console.log('🔒 Unauthorized - User needs to login');
-      localStorage.removeItem('userId');
-      // Optionally redirect to login
-      // window.location.href = '/login';
+    console.error(`❌ [API] Error (${status}):`, message);
+    
+    // Handle specific status codes
+    switch (status) {
+      case 401:
+        // Unauthorized - clear auth and redirect to login
+        localStorage.removeItem('userId');
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+        break;
+        
+      case 403:
+        break;
+        
+      case 404:
+        break;
+        
+      case 409:
+        // ✅ FIX: Handle conflict errors gracefully for user sync
+        if (error.config?.url?.includes('/users/sync')) {
+          // Don't reject, return the response
+          return Promise.resolve(error.response);
+        }
+        break;
+        
+      case 429:
+        console.warn('⚠️  Rate limit exceeded - Please slow down');
+        break;
+        
+      case 500:
+        console.error('💥 Server error');
+        break;
+        
+      default:
+        console.error('❌ Unknown error');
     }
     
-    return Promise.reject(error);
+    return Promise.reject({
+      message,
+      status,
+      data: error.response?.data
+    });
   }
 );
 
+
 // ============================================
-// USER APIs
+// 🔥 USER API (FIXED)
 // ============================================
 
+
 export const userAPI = {
+  /**
+   * Sync user with backend (handles create and update)
+   */
   sync: async (firebaseUser) => {
     try {
       const response = await api.post('/api/users/sync', {
         firebaseUid: firebaseUser.uid,
         email: firebaseUser.email,
-        displayName: firebaseUser.displayName || '',
-        photoURL: firebaseUser.photoURL || '',
+        displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+        photoURL: firebaseUser.photoURL || null,
         emailVerified: firebaseUser.emailVerified || false,
       });
       
       // Save userId to localStorage
       localStorage.setItem('userId', firebaseUser.uid);
       
-      console.log('✅ User synced with backend');
       return response.data;
+      
     } catch (error) {
-      console.error('❌ User sync failed:', error);
-      throw error;
+      // ✅ GRACEFUL DEGRADATION: Don't fail if sync fails
+      if (error.status === 409 || error.status === 200) {
+        localStorage.setItem('userId', firebaseUser.uid);
+        return { success: true, message: 'User already exists' };
+      }
+      
+      console.error('❌ User sync failed:', error.message);
+      
+      // Still save userId for offline functionality
+      localStorage.setItem('userId', firebaseUser.uid);
+      
+      // Don't throw error - allow user to continue
+      return { success: false, error: error.message };
     }
+  },
+
+
+  getProfile: async () => {
+    const response = await api.get('/api/users/me');
+    return response.data;
+  },
+
+
+  updateProfile: async (data) => {
+    const response = await api.patch('/api/users/me', data);
+    return response.data;
+  },
+
+
+  deleteAccount: async () => {
+    const response = await api.delete('/api/users/me');
+    return response.data;
   },
 };
 
+
 // ============================================
-// BOARD APIs
+// 🔥 BOARD API
 // ============================================
+
 
 export const boardAPI = {
   getAll: async () => {
@@ -101,15 +169,18 @@ export const boardAPI = {
     return response.data;
   },
 
+
   create: async (boardData) => {
     const response = await api.post('/api/boards', boardData);
     return response.data;
   },
 
+
   update: async (boardId, boardData) => {
     const response = await api.put(`/api/boards/${boardId}`, boardData);
     return response.data;
   },
+
 
   delete: async (boardId) => {
     const response = await api.delete(`/api/boards/${boardId}`);
@@ -117,9 +188,11 @@ export const boardAPI = {
   },
 };
 
+
 // ============================================
-// TODO APIs
+// 🔥 TODO API
 // ============================================
+
 
 export const todoAPI = {
   getByBoard: async (boardId) => {
@@ -127,30 +200,36 @@ export const todoAPI = {
     return response.data;
   },
 
+
   create: async (boardId, todoData) => {
     const response = await api.post(`/api/boards/${boardId}/todos`, todoData);
     return response.data;
   },
+
 
   update: async (boardId, todoId, todoData) => {
     const response = await api.put(`/api/boards/${boardId}/todos/${todoId}`, todoData);
     return response.data;
   },
 
+
   toggle: async (boardId, todoId) => {
     const response = await api.patch(`/api/boards/${boardId}/todos/${todoId}/toggle`);
     return response.data;
   },
+
 
   delete: async (boardId, todoId) => {
     const response = await api.delete(`/api/boards/${boardId}/todos/${todoId}`);
     return response.data;
   },
 
-   getStreak: async () => {
+
+  getStreak: async () => {
     const response = await api.get('/api/todos/streak');
     return response.data;
-   }
+  }
 };
+
 
 export default api;

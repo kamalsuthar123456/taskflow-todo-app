@@ -33,7 +33,6 @@ export function useStreak() {
         error: null
       });
       
-      console.log(`🔥 Streak loaded: ${data.streak} days`);
     } catch (error) {
       console.error('❌ Failed to fetch streak:', error);
       setStreakData(prev => ({

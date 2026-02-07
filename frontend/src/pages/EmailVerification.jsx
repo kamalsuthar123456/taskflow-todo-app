@@ -2,16 +2,49 @@ import { motion } from "framer-motion";
 import { Mail, RefreshCw } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
+import toast from 'react-hot-toast';
 
 const EmailVerification = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, resendVerificationEmail } = useAuth();
   const [checking, setChecking] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const handleRefresh = async () => {
     setChecking(true);
-    // Reload user to check verification status
-    await user.reload();
-    window.location.reload();
+    
+    try {
+      // Reload Firebase user to check verification status
+      await auth.currentUser?.reload();
+      
+      // Check if verified now
+      if (auth.currentUser?.emailVerified) {
+        toast.success('Email verified! Redirecting...', { duration: 2000 });
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+      } else {
+        toast.error('Email not verified yet. Please check your inbox.');
+      }
+    } catch (error) {
+      console.error('Error checking verification:', error);
+      toast.error('Failed to check verification status');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    
+    try {
+      await resendVerificationEmail();
+      toast.success('Verification email sent! Check your inbox.', { duration: 3000 });
+    } catch (error) {
+      console.error('Error resending email:', error);
+      toast.error('Failed to resend email. Try again later.');
+    } finally {
+      setResending(false);
+    }
   };
 
   return (
@@ -33,7 +66,7 @@ const EmailVerification = () => {
         <p className="text-indigo-400 font-semibold mb-6">{user?.email}</p>
 
         <p className="text-slate-400 text-sm mb-8">
-          Please check your inbox and click the verification link, then refresh this page.
+          Please check your inbox (and spam folder) and click the verification link, then click the button below.
         </p>
 
         <div className="space-y-3">
@@ -45,7 +78,17 @@ const EmailVerification = () => {
             className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <RefreshCw className={`w-5 h-5 ${checking ? 'animate-spin' : ''}`} />
-            {checking ? "Checking..." : "I've verified, refresh page"}
+            {checking ? "Checking..." : "I've verified my email"}
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleResend}
+            disabled={resending}
+            className="w-full py-3 bg-slate-700 text-white rounded-xl font-semibold hover:bg-slate-600 transition-all disabled:opacity-50"
+          >
+            {resending ? "Sending..." : "Resend verification email"}
           </motion.button>
 
           <button

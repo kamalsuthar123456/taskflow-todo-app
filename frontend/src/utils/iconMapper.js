@@ -44,7 +44,7 @@ export const STREAK_ICONS = {
     alt: "Just Starting",
     gradient: "from-green-300 to-emerald-400",
     label: "Growing",
-    description: "Keep it up! 🌱",
+    description: "Keep it up!",
     minStreak: 0,
     maxStreak: 2
   },
@@ -104,24 +104,20 @@ export const getTimeBasedIcon = () => {
   
   // Morning: 6 AM - 12 PM
   if (hour >= 6 && hour < 12) {
-    console.log(`☀️ Time-based icon: Morning (${hour}:00)`);
     return TIME_BASED_ICONS.morning;
   }
   
   // Afternoon: 12 PM - 6 PM
   if (hour >= 12 && hour < 18) {
-    console.log(`🌤️ Time-based icon: Afternoon (${hour}:00)`);
     return TIME_BASED_ICONS.afternoon;
   }
   
   // Evening: 6 PM - 10 PM
   if (hour >= 18 && hour < 22) {
-    console.log(`🌆 Time-based icon: Evening (${hour}:00)`);
     return TIME_BASED_ICONS.evening;
   }
   
   // Night: 10 PM - 6 AM
-  console.log(`🌙 Time-based icon: Night (${hour}:00)`);
   return TIME_BASED_ICONS.night;
 };
 
@@ -132,9 +128,7 @@ export const getTimeBasedIcon = () => {
  */
 export const getStreakIcon = (streak = 0) => {
   const numStreak = Number(streak) || 0; // Ensure it's a number
-  
-  console.log(`🔥 Calculating streak icon for: ${numStreak} days`);
-  
+    
   // Find the appropriate icon based on streak range
   const iconEntry = Object.entries(STREAK_ICONS).find(([key, config]) => {
     return numStreak >= config.minStreak && numStreak <= config.maxStreak;
@@ -142,7 +136,6 @@ export const getStreakIcon = (streak = 0) => {
   
   if (iconEntry) {
     const [key, icon] = iconEntry;
-    console.log(`✅ Streak icon: ${icon.label} (${icon.description})`);
     return icon;
   }
   
@@ -177,7 +170,6 @@ export const getStreakMessage = (streak = 0) => {
 export const getCompletionPercentage = (completed, total) => {
   if (!total || total === 0) return 0;
   const percentage = Math.round((completed / total) * 100);
-  console.log(`📊 Completion: ${completed}/${total} = ${percentage}%`);
   return percentage;
 };
 
@@ -191,14 +183,11 @@ export const preloadAllDashboardIcons = () => {
     ...Object.values(STREAK_ICONS)
   ];
 
-  console.log(`🖼️ Preloading ${allIcons.length} dashboard icons...`);
-
   return Promise.all(
     allIcons.map(icon => {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
-          console.log(`✅ Loaded: ${icon.alt}`);
           resolve();
         };
         img.onerror = () => {
@@ -209,7 +198,6 @@ export const preloadAllDashboardIcons = () => {
       });
     })
   ).then(() => {
-    console.log(`✅ All dashboard icons preloaded`);
   });
 };
 

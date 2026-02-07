@@ -26,7 +26,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // ✅ DEBUG: Log every request
 app.use((req, res, next) => {
-  console.log(`📨 ${req.method} ${req.path} - User: ${req.headers['x-user-id'] || 'none'}`);
   next();
 });
 
@@ -96,10 +95,8 @@ const PORT = process.env.PORT || 5000;
 let server;
 
 const gracefulShutdown = (signal) => {
-  console.log(`\n⚠️  ${signal} received, shutting down...`);
   if (server) {
     server.close(() => {
-      console.log("✅ Server closed");
       process.exit(0);
     });
   } else {
@@ -113,19 +110,7 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 connectDB()
   .then(() => {
     server = app.listen(PORT, () => {
-      console.log('\n🚀 ================================');
-      console.log(`   TaskFlow API Server`);
-      console.log(`   http://localhost:${PORT}`);
-      console.log('   ================================\n');
-      console.log('📋 Available Routes:');
-      console.log('   ✅ GET    /health');
-      console.log('   ✅ POST   /api/users/sync');
-      console.log('   ✅ GET    /api/boards');
-      console.log('   ✅ POST   /api/boards');
-      console.log('   ✅ GET    /api/boards/:boardId/todos');
-      console.log('   ✅ POST   /api/boards/:boardId/todos');
-      console.log('   ✅ PATCH  /api/boards/:boardId/todos/:id/toggle');
-      console.log('   ✅ GET    /api/todos/streak\n');
+
     });
   })
   .catch((err) => {

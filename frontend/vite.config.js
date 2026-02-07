@@ -6,17 +6,29 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    host: true
+    host: true,
+    // ✅ Advanced CORS headers for Firebase
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+      'Cross-Origin-Embedder-Policy': 'unsafe-none',
+      'Cross-Origin-Resource-Policy': 'cross-origin'
+    },
+    // ✅ Proxy Firebase requests (optional)
+    proxy: {}
   },
-  // Force rebuild and clear cache
   optimizeDeps: {
-    force: true
+    force: true,
+    // ✅ Pre-bundle Firebase modules
+    include: ['firebase/app', 'firebase/auth']
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks: undefined
       }
-    }
+    },
+    // ✅ Ensure proper CORS in production
+    target: 'esnext',
+    sourcemap: false
   }
 })

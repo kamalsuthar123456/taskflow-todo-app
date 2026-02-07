@@ -1,12 +1,11 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { Toaster } from 'react-hot-toast'; // ✅ ADD THIS
+import { Toaster } from 'react-hot-toast';
 import { useAuth } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import BoardsPage from "./pages/BoardsPage";
 import EmailVerification from "./pages/EmailVerification";
 import NotFound from "./pages/NotFound";
-import Navbar from "./components/Navbar";
 
 function App() {
   const { user, loading } = useAuth();
@@ -19,9 +18,13 @@ function App() {
     );
   }
 
+  // ✅ Helper function to check if user can access protected routes
+  const canAccessApp = () => {
+    return user && user.emailVerified;
+  };
+
   return (
     <div className="min-h-screen bg-slate-950">
-      {/* ✅ ADD TOASTER HERE */}
       <Toaster 
         position="top-center"
         reverseOrder={false}
@@ -70,22 +73,48 @@ function App() {
       />
       
       <Routes>
+        {/* ✅ Auth page - only accessible when not logged in */}
         <Route 
           path="/auth" 
-          element={!user ? <AuthPage /> : <Navigate to="/" />} 
+          element={!user ? <AuthPage /> : <Navigate to="/" replace />} 
         />
+        
+        {/* ✅ Email verification page - only for logged in but unverified users */}
         <Route 
           path="/verify-email" 
-          element={user && !user.emailVerified ? <EmailVerification /> : <Navigate to="/" />} 
+          element={
+            user && !user.emailVerified 
+              ? <EmailVerification /> 
+              : user 
+                ? <Navigate to="/" replace /> 
+                : <Navigate to="/auth" replace />
+          } 
         />
+        
+        {/* ✅ Protected routes - only for verified users */}
         <Route 
           path="/" 
-          element={user ? <Dashboard /> : <Navigate to="/auth" />} 
+          element={
+            canAccessApp() 
+              ? <Dashboard /> 
+              : user 
+                ? <Navigate to="/verify-email" replace /> 
+                : <Navigate to="/auth" replace />
+          } 
         />
+        
         <Route 
           path="/boards" 
-          element={user ? <BoardsPage /> : <Navigate to="/auth" />} 
+          element={
+            canAccessApp() 
+              ? <BoardsPage /> 
+              : user 
+                ? <Navigate to="/verify-email" replace /> 
+                : <Navigate to="/auth" replace />
+          } 
         />
+        
+        {/* 404 page */}
         <Route 
           path="*" 
           element={<NotFound />} 

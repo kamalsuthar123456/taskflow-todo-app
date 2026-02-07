@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import toast from 'react-hot-toast';
+import { Eye, EyeOff } from 'lucide-react';
+import GoogleSignInButton from "./GoogleSignInButton"; // ✅ ADD THIS IMPORT
 
 const RegisterForm = () => {
   const { register } = useAuth();
@@ -10,6 +12,8 @@ const RegisterForm = () => {
   const [info, setInfo] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -22,7 +26,6 @@ const RegisterForm = () => {
     setError("");
     setInfo("");
 
-    // Validate passwords match
     if (form.password !== form.confirmPassword) {
       const errorMsg = "Passwords do not match";
       setError(errorMsg);
@@ -30,7 +33,6 @@ const RegisterForm = () => {
       return;
     }
 
-    // Validate password strength
     if (form.password.length < 6) {
       const errorMsg = "Password must be at least 6 characters";
       setError(errorMsg);
@@ -44,14 +46,12 @@ const RegisterForm = () => {
       const result = await register(form.email, form.password);
       
       if (result.success) {
-        // ✅ Show ONLY ONE success toast
         toast.success('Account created! Check your email for verification 🎉', {
           duration: 3000,
         });
         
         setForm({ email: "", password: "", confirmPassword: "" });
         
-        // Navigate to verify email page
         setTimeout(() => {
           navigate("/verify-email", { replace: true });
         }, 300);
@@ -60,7 +60,6 @@ const RegisterForm = () => {
     } catch (err) {
       console.error("Registration error:", err);
       
-      // User-friendly error messages
       let errorMessage = "";
       if (err.code === "auth/email-already-in-use") {
         errorMessage = "This email is already registered";
@@ -99,32 +98,58 @@ const RegisterForm = () => {
         <label className="text-xs font-medium text-muted mb-1.5 block">
           Password
         </label>
-        <input
-          name="password"
-          type="password"
-          required
-          minLength={6}
-          placeholder="At least 6 characters"
-          className="w-full rounded-lg bg-slate-900/70 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-          value={form.password}
-          onChange={handleChange}
-        />
+        <div className="relative">
+          <input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            required
+            minLength={6}
+            placeholder="At least 6 characters"
+            className="w-full rounded-lg bg-slate-900/70 border border-white/10 px-4 py-2.5 pr-10 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            value={form.password}
+            onChange={handleChange}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+          >
+            {showPassword ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       <div>
         <label className="text-xs font-medium text-muted mb-1.5 block">
           Confirm Password
         </label>
-        <input
-          name="confirmPassword"
-          type="password"
-          required
-          minLength={6}
-          placeholder="Re-enter password"
-          className="w-full rounded-lg bg-slate-900/70 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-          value={form.confirmPassword}
-          onChange={handleChange}
-        />
+        <div className="relative">
+          <input
+            name="confirmPassword"
+            type={showConfirmPassword ? "text" : "password"}
+            required
+            minLength={6}
+            placeholder="Re-enter password"
+            className="w-full rounded-lg bg-slate-900/70 border border-white/10 px-4 py-2.5 pr-10 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            value={form.confirmPassword}
+            onChange={handleChange}
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+          >
+            {showConfirmPassword ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       {info && (
@@ -156,6 +181,15 @@ const RegisterForm = () => {
           "Create account"
         )}
       </button>
+
+      {/* ✅ GOOGLE SIGN-IN BUTTON - MOVED HERE (AFTER CREATE ACCOUNT BUTTON) */}
+      <div className="flex items-center gap-3 mt-4">
+        <div className="flex-1 h-px bg-white/10"></div>
+        <span className="text-xs text-muted">OR</span>
+        <div className="flex-1 h-px bg-white/10"></div>
+      </div>
+
+      <GoogleSignInButton mode="signup" />
     </form>
   );
 };

@@ -1,5 +1,5 @@
-import Todo from "../models/Todo.js"; // ✅ Default import
-import Board from "../models/Board.js"; // ✅ Default import
+import Todo from "../models/Todo.js";
+import Board from "../models/Board.js";
 
 // Get todos by board
 export const getTodosByBoard = async (req, res) => {
@@ -20,8 +20,6 @@ export const getTodosByBoard = async (req, res) => {
       .sort({ order: 1, createdAt: -1 })
       .lean();
 
-    console.log(`✅ Found ${todos.length} todos for board: ${boardId}`);
-
     res.json({
       success: true,
       count: todos.length,
@@ -37,12 +35,12 @@ export const getTodosByBoard = async (req, res) => {
   }
 };
 
-// Create todo
+// ✅ FIXED: Create todo (ADD userId)
 export const createTodo = async (req, res) => {
   try {
     const { boardId } = req.params;
     const { title, description, priority, status } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.id; // ✅ Get userId from auth middleware
 
     // Verify board ownership
     const board = await Board.findOne({ _id: boardId, ownerId: userId });
@@ -60,15 +58,17 @@ export const createTodo = async (req, res) => {
       });
     }
 
+    // ✅ FIX: Add userId when creating todo
     const todo = await Todo.create({
       boardId,
+      userId,  // ✅ ADDED THIS LINE
       title: title.trim(),
       description: description || "",
       priority: priority || "medium",
-      status: status || "todo"
+      status: status || "todo",
+      completed: false,
+      completedAt: null
     });
-
-    console.log(`✅ Todo created: "${todo.title}"`);
 
     res.status(201).json({
       success: true,
@@ -118,8 +118,6 @@ export const updateTodo = async (req, res) => {
       });
     }
 
-    console.log(`✅ Todo updated: "${todo.title}"`);
-
     res.json({
       success: true,
       data: todo
@@ -157,8 +155,6 @@ export const deleteTodo = async (req, res) => {
         message: "Todo not found"
       });
     }
-
-    console.log(`✅ Todo deleted: "${todo.title}"`);
 
     res.status(204).send();
   } catch (error) {

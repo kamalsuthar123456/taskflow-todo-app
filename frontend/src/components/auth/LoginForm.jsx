@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import toast from 'react-hot-toast';
+import { Eye, EyeOff } from 'lucide-react';
+import GoogleSignInButton from "./GoogleSignInButton"; // ✅ ADD THIS IMPORT
 
 const LoginForm = () => {
   const { login } = useAuth();
@@ -9,6 +11,7 @@ const LoginForm = () => {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -24,12 +27,8 @@ const LoginForm = () => {
       const result = await login(form.email, form.password);
       
       if (result.success) {
-        // ✅ Show ONLY ONE success toast
-        toast.success('Welcome back! 👋', {
-          duration: 2000,
-        });
+        toast.success('Welcome back! 👋', { duration: 2000 });
         
-        // Navigate after short delay to prevent flickering
         setTimeout(() => {
           navigate("/", { replace: true });
         }, 300);
@@ -38,25 +37,32 @@ const LoginForm = () => {
     } catch (err) {
       console.error("Login error:", err);
       
-      // User-friendly error messages
-      let errorMessage = "";
-      if (err.message === "Please verify your email before logging in") {
-        errorMessage = "Please verify your email before logging in";
-        navigate("/verify-email");
-      } else if (err.code === "auth/invalid-credential") {
-        errorMessage = "Invalid email or password";
-      } else if (err.code === "auth/user-not-found") {
-        errorMessage = "No account found with this email";
-      } else if (err.code === "auth/wrong-password") {
-        errorMessage = "Incorrect password";
-      } else if (err.code === "auth/too-many-requests") {
-        errorMessage = "Too many failed attempts. Try again later";
+      if (err.message.includes("verify your email")) {
+        toast.error("Please verify your email first! 📧", { duration: 4000 });
+        setError("Please verify your email before logging in");
+        
+        setTimeout(() => {
+          navigate("/verify-email");
+        }, 1500);
       } else {
-        errorMessage = err.message || "Failed to login";
+        let errorMessage = "Failed to login";
+        
+        if (err.code === "auth/invalid-credential") {
+          errorMessage = "Invalid email or password";
+        } else if (err.code === "auth/user-not-found") {
+          errorMessage = "No account found with this email";
+        } else if (err.code === "auth/wrong-password") {
+          errorMessage = "Incorrect password";
+        } else if (err.code === "auth/too-many-requests") {
+          errorMessage = "Too many failed attempts. Try again later";
+        } else {
+          errorMessage = err.message || errorMessage;
+        }
+        
+        setError(errorMessage);
+        toast.error(errorMessage);
       }
       
-      setError(errorMessage);
-      toast.error(errorMessage);
       setLoading(false);
     }
   };
@@ -82,16 +88,29 @@ const LoginForm = () => {
         <label className="text-xs font-medium text-muted mb-1.5 block">
           Password
         </label>
-        <input
-          name="password"
-          type="password"
-          required
-          minLength={6}
-          placeholder="Enter your password"
-          className="w-full rounded-lg bg-slate-900/70 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-          value={form.password}
-          onChange={handleChange}
-        />
+        <div className="relative">
+          <input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            required
+            minLength={6}
+            placeholder="Enter your password"
+            className="w-full rounded-lg bg-slate-900/70 border border-white/10 px-4 py-2.5 pr-10 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            value={form.password}
+            onChange={handleChange}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+          >
+            {showPassword ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -117,6 +136,15 @@ const LoginForm = () => {
           "Sign in"
         )}
       </button>
+
+      {/* ✅ GOOGLE SIGN-IN BUTTON - MOVED HERE (AFTER SIGN IN BUTTON) */}
+      <div className="flex items-center gap-3 mt-4">
+        <div className="flex-1 h-px bg-white/10"></div>
+        <span className="text-xs text-muted">OR</span>
+        <div className="flex-1 h-px bg-white/10"></div>
+      </div>
+
+      <GoogleSignInButton mode="signin" />
     </form>
   );
 };

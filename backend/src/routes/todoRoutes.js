@@ -29,44 +29,45 @@ router.post("/", createTodo);
 // Update todo
 router.put("/:id", updateTodo);
 
-// ✅ Toggle todo status (with completion timestamp tracking)
+// ✅ FIXED: Toggle todo status (ensure userId exists before saving)
 router.patch("/:id/toggle", async (req, res) => {
   try {
     const { id: todoId } = req.params;
-    const { boardId } = req.params; // From mergeParams
-    const userId = req.user?.id || req.userId; // Support both
-
-    console.log(`🔄 Toggling todo: ${todoId} in board: ${boardId} for user: ${userId}`);
+    const { boardId } = req.params;
+    const userId = req.user?.id || req.userId;
 
     // Verify board ownership
     const board = await Board.findOne({ _id: boardId, ownerId: userId });
     if (!board) {
-      console.error(`❌ Board not found: ${boardId}`);
       return res.status(404).json({ 
         success: false,
         error: 'Board not found or access denied' 
       });
     }
 
-    // Find and update todo
+    // Find todo
     const todo = await Todo.findOne({ _id: todoId, boardId });
     if (!todo) {
-      console.error(`❌ Todo not found: ${todoId}`);
       return res.status(404).json({ 
         success: false,
         error: 'Todo not found' 
       });
     }
 
+    // ✅ FIX: Ensure userId exists before saving
+    if (!todo.userId) {
+      todo.userId = userId;  // ✅ ADDED THIS LINE
+    }
+
     // Toggle status and track completion time
     if (todo.status === 'done') {
       todo.status = 'todo';
+      todo.completed = false;
       todo.completedAt = null;
-      console.log(`⏪ Todo unmarked as done: ${todo.title}`);
     } else {
       todo.status = 'done';
+      todo.completed = true;
       todo.completedAt = new Date();
-      console.log(`✅ Todo marked as done: ${todo.title} at ${todo.completedAt}`);
     }
 
     await todo.save();
@@ -95,18 +96,13 @@ router.delete("/:id", deleteTodo);
 // Get user's completion streak
 router.get("/streak", async (req, res) => {
   try {
-    const userId = req.user?.id || req.userId; // Support both
-
-    console.log(`🔥 Fetching streak for user: ${userId}`);
+    const userId = req.user?.id || req.userId;
 
     // Get all user's boards
     const boards = await Board.find({ ownerId: userId });
     const boardIds = boards.map(b => b._id);
 
-    console.log(`📋 Found ${boards.length} boards for user`);
-
     if (boardIds.length === 0) {
-      console.log('⚠️  No boards found for user');
       return res.json({
         success: true,
         data: {
@@ -125,8 +121,6 @@ router.get("/streak", async (req, res) => {
       completedAt: { $ne: null, $exists: true }
     }).select('completedAt title');
 
-    console.log(`✅ Found ${completedTodos.length} completed todos`);
-
     // Extract unique completion dates (YYYY-MM-DD format)
     const completionDates = completedTodos
       .filter(todo => todo.completedAt)
@@ -140,8 +134,6 @@ router.get("/streak", async (req, res) => {
 
     // Get unique dates and sort descending
     const uniqueDates = [...new Set(completionDates)].sort().reverse();
-
-    console.log(`📅 Unique completion dates: ${uniqueDates.length}`);
 
     // Calculate current streak
     let streak = 0;
@@ -164,8 +156,6 @@ router.get("/streak", async (req, res) => {
         break;
       }
     }
-
-    console.log(`🔥 Current streak: ${streak} days`);
 
     // Build completions map for frontend
     const completionsByDay = {};
@@ -193,7 +183,5 @@ router.get("/streak", async (req, res) => {
     });
   }
 });
-
-console.log("✅ Todo routes loaded with authentication and streak tracking");
 
 export default router;

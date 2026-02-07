@@ -7,11 +7,16 @@ const todoSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  userId: {
+    type: String,
+    required: true,
+    index: true
+  },
   title: {
     type: String,
     required: [true, "Todo title is required"],
     trim: true,
-    maxlength: [200, "Title cannot exceed 200 characters"]
+    maxlength: [500, "Title cannot exceed 500 characters"]
   },
   description: {
     type: String,
@@ -25,11 +30,18 @@ const todoSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['todo', 'in-progress', 'done'],
+    enum: ['todo', 'active', 'done'],
     default: 'todo'
   },
-  // ✅ Track completion timestamp
+  completed: {
+    type: Boolean,
+    default: false
+  },
   completedAt: {
+    type: Date,
+    default: null
+  },
+  dueDate: {
     type: Date,
     default: null
   },
@@ -44,8 +56,8 @@ const todoSchema = new mongoose.Schema({
 // Indexes for faster queries
 todoSchema.index({ boardId: 1, order: 1 });
 todoSchema.index({ boardId: 1, status: 1 });
-todoSchema.index({ boardId: 1, completedAt: 1 });
+todoSchema.index({ userId: 1, completedAt: 1 });
+todoSchema.index({ boardId: 1, completed: 1 });
 
-// ✅ FIXED: Use default export
 const Todo = mongoose.model("Todo", todoSchema);
 export default Todo;

@@ -10,12 +10,8 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-
-// Initialize Firebase (singleton pattern)
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-
-console.log("✅ Firebase initialized with project:", firebaseConfig.projectId);
 
 export { auth };
 export default app;

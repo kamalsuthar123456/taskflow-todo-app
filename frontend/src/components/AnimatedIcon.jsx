@@ -74,7 +74,6 @@ const AnimatedIcon = ({
       img.onload = () => {
         setImageLoaded(true);
         setImageError(false);
-        console.log(`✅ Icon loaded: ${iconConfig.alt}`);
       };
       img.onerror = () => {
         setImageError(true);
@@ -86,7 +85,6 @@ const AnimatedIcon = ({
   }, [iconConfig?.url, iconConfig?.alt]);
 
   if (!iconConfig) {
-    console.warn('⚠️ AnimatedIcon: No icon config provided');
     return null;
   }
 
