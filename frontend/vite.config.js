@@ -4,99 +4,59 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
   
-  // ============================================
-  // 🔥 DEVELOPMENT SERVER (Local)
-  // ============================================
+  base: '/',
+  
+  // Development Server
   server: {
     port: 5173,
     strictPort: true,
     host: true,
-    open: true,  // Auto-open browser
-    
-    // CORS headers for Firebase Auth (Google Sign-in)
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
-      'Cross-Origin-Embedder-Policy': 'unsafe-none',
-      'Cross-Origin-Resource-Policy': 'cross-origin'
-    }
+    open: true
+    // ✅ REMOVED ALL HEADERS - Fixes COOP issue
   },
   
-  // ============================================
-  // 🔥 PRODUCTION BUILD (Vercel/Deployment)
-  // ============================================
+  // Production Build  
   build: {
-    minify: 'terser',
-    sourcemap: mode === 'production' ? false : true,  // No sourcemaps in production
+    minify: 'esbuild',  // ✅ Changed to esbuild (faster, no extra package needed)
+    sourcemap: false,
     target: 'esnext',
     outDir: 'dist',
+    emptyOutDir: true,
     
-    // Terser optimization (remove console.log in production)
-    terserOptions: {
-      compress: {
-        drop_console: mode === 'production',
-        drop_debugger: true,
-        pure_funcs: mode === 'production' ? ['console.log', 'console.info', 'console.debug'] : []
-      }
-    },
+    // ✅ Removed terserOptions (not needed with esbuild)
     
-    // Code splitting for better performance
     rollupOptions: {
       output: {
         manualChunks: {
-          // Core React libraries
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          
-          // Firebase (separate chunk for better caching)
-          'vendor-firebase': ['firebase/app', 'firebase/auth'],
-          
-          // Other heavy libraries
-          'vendor-ui': ['framer-motion', 'react-hot-toast', 'lucide-react']
+          'vendor-firebase': ['firebase/app', 'firebase/auth']
         },
-        
-        // Better file naming for caching
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
       }
     },
     
-    // Performance optimization
-    chunkSizeWarningLimit: 1000,  // 1MB warning limit
+    chunkSizeWarningLimit: 1000,
     cssCodeSplit: true,
-    assetsInlineLimit: 4096  // 4KB - inline small assets as base64
+    assetsInlineLimit: 4096
   },
   
-  // ============================================
-  // 🔥 DEPENDENCY OPTIMIZATION
-  // ============================================
+  // Dependency Optimization
   optimizeDeps: {
     include: [
       'react',
       'react-dom',
       'react-router-dom',
       'firebase/app',
-      'firebase/auth',
-      'axios',
-      'framer-motion'
-    ],
-    exclude: ['@vite/client', '@vite/env']
+      'firebase/auth'
+    ]
   },
   
-  // ============================================
-  // 🔥 PREVIEW SERVER (npm run preview)
-  // ============================================
+  // Preview Server
   preview: {
     port: 3000,
     host: true,
-    strictPort: true,
     open: true
-  },
-  
-  // ============================================
-  // 🔥 ENVIRONMENT VARIABLES
-  // ============================================
-  define: {
-    __DEV__: mode === 'development',
-    __PROD__: mode === 'production'
   }
 }));
