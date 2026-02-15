@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => ({
   // 🔥 PRODUCTION BUILD (Vercel/Deployment)
   // ============================================
   build: {
-    minify: 'terser',
+    minify: 'esbuild',
     sourcemap: mode === 'production' ? false : true,  // No sourcemaps in production
     target: 'esnext',
     outDir: 'dist',
