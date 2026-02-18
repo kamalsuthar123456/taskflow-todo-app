@@ -33,8 +33,6 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// userSchema.index({ firebaseUid: 1 });
-// userSchema.index({ email: 1 });
 
 // ✅ ONLY FIX: Change to default export
 const User = mongoose.model("User", userSchema);

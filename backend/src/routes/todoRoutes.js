@@ -29,7 +29,7 @@ router.post("/", createTodo);
 // Update todo
 router.put("/:id", updateTodo);
 
-// ✅ FIXED: Toggle todo status (ensure userId exists before saving)
+// Toggle todo status (ensure userId exists before saving)
 router.patch("/:id/toggle", async (req, res) => {
   try {
     const { id: todoId } = req.params;
@@ -54,9 +54,9 @@ router.patch("/:id/toggle", async (req, res) => {
       });
     }
 
-    // ✅ FIX: Ensure userId exists before saving
+    // Ensure userId exists before saving
     if (!todo.userId) {
-      todo.userId = userId;  // ✅ ADDED THIS LINE
+      todo.userId = userId;
     }
 
     // Toggle status and track completion time

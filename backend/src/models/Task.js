@@ -24,15 +24,15 @@ const taskSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  // ✅ NEW: Track WHEN task was completed
+
   completedAt: {
     type: Date,
     default: null
   },
-  // ✅ NEW: Track completion history
+
   completionHistory: [{
     completedAt: Date,
-    action: String // 'completed' or 'uncompleted'
+    action: String
   }]
 }, {
   timestamps: true

@@ -1,10 +1,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
-/**
- * ✅ ENHANCED AnimatedIcon Component
- * Reusable 3D icon with animations, loading states, and fallbacks
- */
+
 const AnimatedIcon = ({ 
   iconConfig, 
   size = 'md', 

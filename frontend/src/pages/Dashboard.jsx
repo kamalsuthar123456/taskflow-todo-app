@@ -27,10 +27,6 @@ import {
   preloadAllDashboardIcons
 } from "../utils/iconMapper";
 
-// ========================================
-// 🎨 UTILITY FUNCTIONS
-// ========================================
-
 function cx(...c) {
   return c.filter(Boolean).join(" ");
 }
@@ -48,10 +44,6 @@ function startOfDay(d) {
 
 const spring = { type: "spring", stiffness: 420, damping: 34, mass: 0.7 };
 
-// ========================================
-// 🎨 UI COMPONENTS (UNCHANGED)
-// ========================================
-
 function SceneCard({ children, className }) {
   return (
     <div
@@ -61,10 +53,13 @@ function SceneCard({ children, className }) {
         className
       )}
     >
-      <div className="absolute inset-0 opacity-[0.18] pointer-events-none" style={{
-        backgroundImage:
-          "radial-gradient(900px 500px at 20% 10%, rgba(168,85,247,.30), transparent 60%), radial-gradient(800px 500px at 80% 20%, rgba(34,211,238,.22), transparent 60%), radial-gradient(800px 600px at 30% 90%, rgba(59,130,246,.18), transparent 60%)",
-      }} />
+      <div
+        className="absolute inset-0 opacity-[0.18] pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(900px 500px at 20% 10%, rgba(168,85,247,.30), transparent 60%), radial-gradient(800px 500px at 80% 20%, rgba(34,211,238,.22), transparent 60%), radial-gradient(800px 600px at 30% 90%, rgba(59,130,246,.18), transparent 60%)",
+        }}
+      />
       <div className="relative">{children}</div>
     </div>
   );
@@ -108,7 +103,9 @@ function StatCard({ icon: Icon, label, value, accent }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-xs text-white/60">{label}</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight">{value}</div>
+            <div className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight">
+              {value}
+            </div>
           </div>
           <div
             className={cx(
@@ -196,13 +193,13 @@ function AddTaskModal({ open, onClose, onAdd }) {
     e.preventDefault();
     const t = title.trim();
     if (!t) return;
-    
+
     setSubmitting(true);
     try {
-      await onAdd({ 
-        title: t, 
+      await onAdd({
+        title: t,
         description: description.trim(),
-        priority 
+        priority
       });
       setTitle("");
       setDescription("");
@@ -311,7 +308,9 @@ function AddTaskModal({ open, onClose, onAdd }) {
                   {description}
                 </div>
               )}
-              <div className="mt-2"><PriorityPill value={priority} /></div>
+              <div className="mt-2">
+                <PriorityPill value={priority} />
+              </div>
             </div>
           </div>
         </div>
@@ -430,10 +429,12 @@ function TaskRow({ task, onToggle, onDelete }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className={cx(
-                "text-sm sm:text-base font-semibold tracking-tight",
-                done && "line-through text-white/50"
-              )}>
+              <div
+                className={cx(
+                  "text-sm sm:text-base font-semibold tracking-tight",
+                  done && "line-through text-white/50"
+                )}
+              >
                 {task.title}
               </div>
 
@@ -469,7 +470,9 @@ function TaskRow({ task, onToggle, onDelete }) {
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <PriorityPill value={task.priority} />
-                <span className="text-[11px] text-white/45">{done ? "Completed" : "Active"}</span>
+                <span className="text-[11px] text-white/45">
+                  {done ? "Completed" : "Active"}
+                </span>
                 {hasDescription && !expanded && (
                   <span className="inline-flex items-center gap-1 text-[11px] text-white/45">
                     <FileText className="h-3 w-3" />
@@ -496,15 +499,10 @@ function TaskRow({ task, onToggle, onDelete }) {
   );
 }
 
-// ========================================
-// 🎯 MAIN DASHBOARD
-// ========================================
-
 const Dashboard = () => {
   const { user } = useAuth();
   const username = user?.email?.split('@')[0] || 'Guest';
 
-  // ✅ Tasks hook
   const {
     tasks,
     boards,
@@ -518,7 +516,6 @@ const Dashboard = () => {
     reload: reloadTasks,
   } = useTasks();
 
-  // ✅ Streak hook (from backend)
   const {
     streak,
     completionsByDay,
@@ -532,61 +529,33 @@ const Dashboard = () => {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [isHabitOpen, setIsHabitOpen] = useState(false);
 
-  // ============================================
-  // ✅ REAL-TIME TRACKING EFFECTS
-  // ============================================
-
-  // 1️⃣ Preload dashboard icons on mount
   useEffect(() => {
     preloadAllDashboardIcons().catch(() => {});
   }, []);
 
-  // 2️⃣ Track stats changes in real-time
-  useEffect(() => {
-    const completedCount = tasks.filter(t => t.completed).length;
-    const activeCount = tasks.filter(t => !t.completed).length;
-    
-    console.log('📊 Stats Dashboard Update:', {
-      totalTasks: tasks.length,
-      completedTasks: completedCount,
-      activeTasks: activeCount,
-      currentStreak: streak,
-      timestamp: new Date().toLocaleTimeString('en-IN', { 
-        timeZone: 'Asia/Kolkata',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      })
-    });
 
-    // ✅ Log streak icon being used
+   useEffect(() => {
     if (streak !== undefined) {
-      const streakIcon = getStreakIcon(streak);
+      getStreakIcon(streak);
     }
   }, [tasks, streak]);
 
-  // 3️⃣ Hourly refresh for time-based icon updates
   useEffect(() => {
-    const checkAndLogTimeIcon = () => {
-      const timeIcon = getTimeBasedIcon();
-      console.log(`⏰ Time-based icon refresh: ${timeIcon.label} at ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+    const checkTimeIcon = () => {
+      getTimeBasedIcon();
     };
 
-    // Log current time icon immediately
-    checkAndLogTimeIcon();
+    checkTimeIcon();
 
-    // Set up hourly refresh
     const interval = setInterval(() => {
-      checkAndLogTimeIcon();
-      // Force a small state update to trigger re-render
-      setTaskFilter(prev => prev); // No-op update to trigger re-render
-    }, 60 * 60 * 1000); // Every hour
+      checkTimeIcon();
+      setTaskFilter(prev => prev);
+    }, 60 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, []);
-
-  // 4️⃣ Monitor streak changes and reload
-   useEffect(() => {
+  
+  useEffect(() => {
     if (streak > 0) {
       if (streak === 3) {
         toast.success('🎉 3-day streak! Keep it up!', {
@@ -646,17 +615,10 @@ const Dashboard = () => {
     }
   }, [streak]);
 
-  // ============================================
-  // 📊 COMPUTED STATS
-  // ============================================
-
-  // ✅ FIXED: Use streak from hook (not local calculation)
   const stats = useMemo(() => {
     const total = tasks.length;
     const done = tasks.filter((t) => t.completed).length;
     const active = total - done;
-    
-    
     return { total, done, active, streak };
   }, [tasks, streak]);
 
@@ -668,12 +630,10 @@ const Dashboard = () => {
         if (taskFilter === "done") return t.completed;
         return true;
       })
-      .filter((t) => (q ? t.title.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) : true));
+      .filter((t) =>
+        q ? t.title.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) : true
+      );
   }, [tasks, taskFilter, taskQuery]);
-
-  // ============================================
-  // 🎬 ACTION HANDLERS
-  // ============================================
 
   async function addTask({ title, description, priority }) {
     try {
@@ -685,8 +645,8 @@ const Dashboard = () => {
 
   async function addHabitAsTask(habitType) {
     try {
-      await addTaskAPI({ 
-        title: `${habitType.name} 🎯`, 
+      await addTaskAPI({
+        title: `${habitType.name} 🎯`,
         description: habitType.desc || '',
         priority: 'medium'
       });
@@ -695,16 +655,13 @@ const Dashboard = () => {
     }
   }
 
-  // ✅ FIXED: Toggle with streak reload
   async function toggleTask(id) {
     try {
       const task = tasks.find(t => t.id === id);
       const newStatus = !task?.completed;
-          
+
       await toggleTaskAPI(id);
-      
-      
-      // ✅ Reload streak after completing task
+
       if (newStatus) {
         setTimeout(() => {
           reloadStreak();
@@ -718,21 +675,16 @@ const Dashboard = () => {
   async function deleteTask(id) {
     try {
       const task = tasks.find(t => t.id === id);
-      
       await deleteTaskAPI(id);
     } catch (error) {
       console.error('❌ Failed to delete task:', error);
     }
   }
 
-  // ✅ FIXED: Clear completed with streak reload
   async function clearCompleted() {
     try {
       const completedCount = tasks.filter(t => t.completed).length;
-      
       await clearCompletedAPI();
-          
-      // ✅ Reload streak after clearing
       setTimeout(() => {
         reloadStreak();
       }, 300);
@@ -741,7 +693,6 @@ const Dashboard = () => {
     }
   }
 
-  // Rest of your Dashboard component remains the same...
   if (tasksLoading || streakLoading) {
     return (
       <div className="min-h-screen bg-[radial-gradient(1200px_600px_at_50%_20%,rgba(168,85,247,0.22),transparent_60%),radial-gradient(900px_600px_at_80%_10%,rgba(34,211,238,0.12),transparent_60%),radial-gradient(1000px_700px_at_20%_90%,rgba(59,130,246,0.10),transparent_55%),linear-gradient(to_bottom,rgba(2,6,23,1),rgba(3,7,18,1))] text-slate-100 flex items-center justify-center">
@@ -766,7 +717,7 @@ const Dashboard = () => {
             <div className="mt-2 text-sm text-white/60">
               {tasksError || streakError}
             </div>
-            <button 
+            <button
               onClick={() => {
                 reloadTasks();
                 reloadStreak();
@@ -783,7 +734,6 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(1200px_600px_at_50%_20%,rgba(168,85,247,0.22),transparent_60%),radial-gradient(900px_600px_at_80%_10%,rgba(34,211,238,0.12),transparent_60%),radial-gradient(1000px_700px_at_20%_90%,rgba(59,130,246,0.10),transparent_55%),linear-gradient(to_bottom,rgba(2,6,23,1),rgba(3,7,18,1))] text-slate-100">
-      
       <Navbar onAddTaskClick={() => setIsAddTaskOpen(true)} />
 
       <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
@@ -800,7 +750,10 @@ const Dashboard = () => {
                   Today
                 </div>
                 <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight">
-                  Welcome back, <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{username}</span>
+                  Welcome back,{" "}
+                  <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                    {username}
+                  </span>
                 </h1>
                 <p className="mt-1 text-sm text-white/65">
                   Let's make today productive
@@ -808,9 +761,9 @@ const Dashboard = () => {
               </div>
 
               <div className="hidden sm:block">
-                <AnimatedIcon 
-                  iconConfig={getTimeBasedIcon()} 
-                  size="lg" 
+                <AnimatedIcon
+                  iconConfig={getTimeBasedIcon()}
+                  size="lg"
                   animationType="float"
                   showLabel={false}
                 />
@@ -853,13 +806,17 @@ const Dashboard = () => {
                   <Flame className="h-4 w-4" />
                   Streak
                 </div>
-                <div className="mt-1 text-3xl font-bold tracking-tight">{stats.streak} days</div>
-                <div className="mt-1 text-sm text-white/65">Finish at least 1 task daily.</div>
+                <div className="mt-1 text-3xl font-bold tracking-tight">
+                  {stats.streak} days
+                </div>
+                <div className="mt-1 text-sm text-white/65">
+                  Finish at least 1 task daily.
+                </div>
               </div>
 
-              <AnimatedIcon 
-                iconConfig={getStreakIcon(stats.streak)} 
-                size="lg" 
+              <AnimatedIcon
+                iconConfig={getStreakIcon(stats.streak)}
+                size="lg"
                 animationType="pulse"
                 showLabel={true}
               />
@@ -868,13 +825,17 @@ const Dashboard = () => {
             <div className="mt-6">
               <div className="flex items-center justify-between text-xs text-white/60">
                 <span>Today's progress</span>
-                <span>{stats.done}/{stats.total}</span>
+                <span>
+                  {stats.done}/{stats.total}
+                </span>
               </div>
               <div className="mt-2 h-2 rounded-full bg-white/5 border border-white/10 overflow-hidden">
                 <motion.div
                   className="h-full rounded-full bg-gradient-to-r from-violet-500/90 via-fuchsia-500/80 to-cyan-400/80"
                   initial={{ width: 0 }}
-                  animate={{ width: `${stats.total ? Math.round((stats.done / stats.total) * 100) : 0}%` }}
+                  animate={{
+                    width: `${stats.total ? Math.round((stats.done / stats.total) * 100) : 0}%`,
+                  }}
                   transition={{ duration: 0.6, ease: "easeOut" }}
                 />
               </div>
@@ -933,7 +894,8 @@ const Dashboard = () => {
                     className={cx(
                       "rounded-xl border px-3 py-2 text-sm font-semibold transition",
                       "bg-white/[0.03] hover:bg-white/[0.06] border-white/10",
-                      taskFilter === b.k && "ring-4 ring-violet-500/20 border-violet-400/30"
+                      taskFilter === b.k &&
+                        "ring-4 ring-violet-500/20 border-violet-400/30"
                     )}
                   >
                     {b.label}
@@ -961,7 +923,9 @@ const Dashboard = () => {
               <div className="mt-5">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="text-xs text-white/60">Tip</div>
-                  <div className="mt-1 text-sm font-semibold">Add descriptions to tasks</div>
+                  <div className="mt-1 text-sm font-semibold">
+                    Add descriptions to tasks
+                  </div>
                   <div className="mt-1 text-sm text-white/65">
                     Click "Show details" on any task to view its description.
                   </div>
@@ -975,50 +939,81 @@ const Dashboard = () => {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs text-white/60">Tasks</div>
-                  <div className="mt-1 text-xl font-bold tracking-tight">Your list</div>
+                  <div className="mt-1 text-xl font-bold tracking-tight">
+                    Your list
+                  </div>
                 </div>
                 <div className="text-xs text-white/60">
-                  Showing <span className="text-white/80">{filteredTasks.length}</span>
+                  Showing{" "}
+                  <span className="text-white/80">
+                    {filteredTasks.length}
+                  </span>
                 </div>
               </div>
 
-              <div className="mt-4 space-y-3">
-                <AnimatePresence initial={false}>
-                  {filteredTasks.map((task) => (
-                    <TaskRow key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} />
-                  ))}
-                </AnimatePresence>
+              {/* SCROLLABLE TASK LIST */}
+              <div className="mt-4">
+                <div className="max-h-[420px] overflow-y-auto space-y-3 pr-1">
+                  <AnimatePresence initial={false}>
+                    {filteredTasks.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        onToggle={toggleTask}
+                        onDelete={deleteTask}
+                      />
+                    ))}
+                  </AnimatePresence>
 
-                {filteredTasks.length === 0 && (
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center">
-                    <div className="mx-auto h-12 w-12 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center">
-                      <ListTodo className="h-5 w-5 text-white/70" />
+                  {filteredTasks.length === 0 && (
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center">
+                      <div className="mx-auto h-12 w-12 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center">
+                        <ListTodo className="h-5 w-5 text-white/70" />
+                      </div>
+                      <div className="mt-3 text-sm font-semibold">
+                        No tasks found
+                      </div>
+                      <div className="mt-1 text-sm text-white/60">
+                        Try a different filter or add a new task.
+                      </div>
+                      <button
+                        onClick={() => setIsAddTaskOpen(true)}
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 transition"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add task
+                      </button>
                     </div>
-                    <div className="mt-3 text-sm font-semibold">No tasks found</div>
-                    <div className="mt-1 text-sm text-white/60">Try a different filter or add a new task.</div>
-                    <button
-                      onClick={() => setIsAddTaskOpen(true)}
-                      className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 transition"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add task
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </SceneCard>
           </div>
         </motion.div>
 
         <footer className="py-10">
-          <div className="text-center text-xs text-white/45">
-            TaskFlow Dashboard — Built with React & Framer Motion
+        <div className="text-center space-y-1">
+          <div className="text-xs text-white/45">
+            © {new Date().getFullYear()} TaskFlow &nbsp;•&nbsp; Built to help you do more, stress less
           </div>
-        </footer>
+          <div className="text-[11px] text-white/25">
+            Designed & Developed by Kamal Suthar
+          </div>
+        </div>
+      </footer>
+
       </main>
 
-      <AddTaskModal open={isAddTaskOpen} onClose={() => setIsAddTaskOpen(false)} onAdd={addTask} />
-      <AddHabitModal open={isHabitOpen} onClose={() => setIsHabitOpen(false)} onAdd={addHabitAsTask} />
+      <AddTaskModal
+        open={isAddTaskOpen}
+        onClose={() => setIsAddTaskOpen(false)}
+        onAdd={addTask}
+      />
+      <AddHabitModal
+        open={isHabitOpen}
+        onClose={() => setIsHabitOpen(false)}
+        onAdd={addHabitAsTask}
+      />
     </div>
   );
 };

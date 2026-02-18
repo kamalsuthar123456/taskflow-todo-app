@@ -3,7 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import toast from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
-import GoogleSignInButton from "./GoogleSignInButton"; // ✅ ADD THIS IMPORT
+import GoogleSignInButton from "./GoogleSignInButton";
 
 const RegisterForm = () => {
   const { register } = useAuth();

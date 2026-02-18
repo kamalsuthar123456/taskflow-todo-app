@@ -11,7 +11,7 @@ export const requireAuth = (req, res, next) => {
   // ✅ Attach user to request with both formats for compatibility
   req.user = { 
     id: userId,
-    uid: userId  // ✅ Add uid as well for Firebase compatibility
+    uid: userId
   };
   
   next();

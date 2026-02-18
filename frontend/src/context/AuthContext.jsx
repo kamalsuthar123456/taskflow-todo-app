@@ -54,7 +54,6 @@ export const AuthProvider = ({ children }) => {
       try {
         const result = await handleGoogleRedirectResult();
         if (result && result.success) {
-          // Auth state listener will handle the rest
         }
       } catch (error) {
         console.error('❌ Redirect result error:', error);
@@ -254,12 +253,10 @@ export const AuthProvider = ({ children }) => {
       
       const result = await signInWithGooglePopup();
       
-      // ✅ Handle redirect case (mobile)
       if (result.redirecting) {
         return { success: true, redirecting: true };
       }
       
-      // ✅ Handle popup case (desktop)
       if (result.success) {
         return { 
           success: true, 

@@ -61,7 +61,7 @@ export const createTodo = async (req, res) => {
     // ✅ FIX: Add userId when creating todo
     const todo = await Todo.create({
       boardId,
-      userId,  // ✅ ADDED THIS LINE
+      userId,
       title: title.trim(),
       description: description || "",
       priority: priority || "medium",

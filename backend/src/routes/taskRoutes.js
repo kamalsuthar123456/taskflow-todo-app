@@ -3,7 +3,7 @@ const router = express.Router();
 const Task = require('../models/Task');
 const auth = require('../middleware/auth');
 
-// ✅ UPDATED: Toggle task (track completion date)
+//Toggle task (track completion date)
 router.patch('/:id/toggle', auth, async (req, res) => {
   try {
     const task = await Task.findOne({ 

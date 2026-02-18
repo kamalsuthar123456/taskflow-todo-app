@@ -140,7 +140,6 @@ export const getStreakIcon = (streak = 0) => {
   }
   
   // Fallback to starting icon
-  console.log(`⚠️ Streak fallback: Using starting icon`);
   return STREAK_ICONS.starting;
 };
 
@@ -191,7 +190,6 @@ export const preloadAllDashboardIcons = () => {
           resolve();
         };
         img.onerror = () => {
-          console.warn(`⚠️ Failed to load: ${icon.alt}`);
           resolve();
         };
         img.src = icon.url;

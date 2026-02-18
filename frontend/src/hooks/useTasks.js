@@ -53,12 +53,12 @@ export function useTasks() {
         const transformedTasks = todos.map(todo => ({
             id: todo._id,
             title: todo.title,
-            description: todo.description || '', // ✅ Include description
-            completed: todo.status === 'done', // ✅ CRITICAL: Map status to completed
+            description: todo.description || '', 
+            completed: todo.status === 'done',
             priority: todo.priority || 'medium',
             status: todo.status,
             boardId: todo.boardId,
-            completedAt: todo.completedAt // ✅ Include completion timestamp
+            completedAt: todo.completedAt
             }));
         setTasks(transformedTasks);
       }
@@ -124,7 +124,6 @@ export function useTasks() {
       await todoAPI.toggle(defaultBoard._id, taskId);
     } catch (err) {
       console.error('❌ Failed to toggle task:', err);
-      // Revert on error
       loadData();
       throw err;
     }
@@ -143,7 +142,6 @@ export function useTasks() {
 
     } catch (err) {
       console.error('❌ Failed to delete task:', err);
-      // Revert on error
       loadData();
       throw err;
     }

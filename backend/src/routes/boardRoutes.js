@@ -9,7 +9,6 @@ import { requireAuth } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// ✅ CRITICAL: Apply auth to ALL board routes
 router.use(requireAuth);
 
 router.get("/", getBoards);

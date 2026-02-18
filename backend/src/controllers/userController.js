@@ -31,13 +31,6 @@ export const syncUser = async (req, res) => {
       }
     );
 
-    // // ✅ Log Google sign-in users
-    // if (photoURL && photoURL.includes('googleusercontent')) {
-    //   console.log('✅ Google user synced:', email);
-    // } else {
-    //   console.log('✅ Email/Password user synced:', email);
-    // }
-
     res.status(200).json({
       success: true,
       message: "User synced successfully",

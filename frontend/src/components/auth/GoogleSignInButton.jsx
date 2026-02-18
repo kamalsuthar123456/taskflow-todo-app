@@ -20,7 +20,6 @@ const GoogleSignInButton = ({ mode = "signin" }) => {
           duration: 2000,
         });
         
-        // Small delay for better UX
         setTimeout(() => {
           navigate("/", { replace: true });
         }, 300);

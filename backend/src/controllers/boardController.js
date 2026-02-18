@@ -1,12 +1,12 @@
 import Board from "../models/Board.js";
 import Todo from "../models/Todo.js";
 
-// ✅ Get boards - ONLY user's own boards
+// Get boards - ONLY user's own boards
 export const getBoards = async (req, res) => {
   try {
     const userId = req.user.id;
         
-    // ✅ Filter by ownerId
+    // Filter by ownerId
     const boards = await Board.find({ ownerId: userId })
       .sort({ createdAt: -1 })
       .lean();
@@ -25,7 +25,7 @@ export const getBoards = async (req, res) => {
   }
 };
 
-// ✅ Create board with ownerId
+// Create board with ownerId
 export const createBoard = async (req, res) => {
   try {
     const { title, description } = req.body;
@@ -41,7 +41,7 @@ export const createBoard = async (req, res) => {
     const board = await Board.create({
       title: title.trim(),
       description: description || "",
-      ownerId: userId  // ✅ CRITICAL
+      ownerId: userId
     });
 
     res.status(201).json({
@@ -66,16 +66,16 @@ export const createBoard = async (req, res) => {
   }
 };
 
-// ✅ Update board - ONLY if user owns it
+// Update board - ONLY if user owns it
 export const updateBoard = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description } = req.body;
     const userId = req.user.id;
 
-    // ✅ Security: Check ownerId
+    // Security: Check ownerId
     const board = await Board.findOneAndUpdate(
-      { _id: id, ownerId: userId },  // ✅ Double lock
+      { _id: id, ownerId: userId },
       { 
         title: title?.trim(), 
         description: description || "" 
@@ -117,7 +117,7 @@ export const deleteBoard = async (req, res) => {
     // ✅ Security: Check ownerId
     const board = await Board.findOneAndDelete({
       _id: id,
-      ownerId: userId  // ✅ Critical check
+      ownerId: userId 
     });
 
     if (!board) {

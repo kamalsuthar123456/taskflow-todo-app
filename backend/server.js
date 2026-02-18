@@ -10,9 +10,7 @@ dotenv.config();
 
 const app = express();
 
-// ============================================
 // MIDDLEWARE
-// ============================================
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -28,7 +26,7 @@ app.use(cors({
       return callback(null, true);
     }
 
-    return callback(null, false); // Do NOT throw error
+    return callback(null, false);
   },
   credentials: true
 }));
@@ -36,14 +34,11 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ DEBUG: Log every request
 app.use((req, res, next) => {
   next();
 });
 
-// ============================================
 // ROUTES
-// ============================================
 
 app.get("/health", (req, res) => {
   res.json({ 
@@ -60,17 +55,13 @@ app.get("/", (req, res) => {
   });
 });
 
-// ✅ API ROUTES
 app.use("/api/users", userRoutes);
 app.use("/api/boards", boardRoutes);
 
-// ✅ CRITICAL: Mount todo routes at BOTH paths
-app.use("/api/boards/:boardId/todos", todoRoutes); // For CRUD with board context
-app.use("/api/todos", todoRoutes); // ✅ NEW: For /streak endpoint
+app.use("/api/boards/:boardId/todos", todoRoutes); 
+app.use("/api/todos", todoRoutes); 
 
-// ============================================
 // ERROR HANDLERS
-// ============================================
 
 app.use((req, res) => {
   console.log(`❌ 404 Not Found: ${req.method} ${req.originalUrl}`);
@@ -99,9 +90,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ============================================
 // START SERVER
-// ============================================
 
 const PORT = process.env.PORT || 5000;
 let server;

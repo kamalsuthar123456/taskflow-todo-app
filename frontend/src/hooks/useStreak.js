@@ -1,11 +1,6 @@
-// src/hooks/useStreak.js
 import { useState, useEffect, useCallback } from 'react';
 import { todoAPI } from '../api/client';
 
-/**
- * Hook for managing streak data
- * Fetches user's completion streak from backend
- */
 export function useStreak() {
   const [streakData, setStreakData] = useState({
     streak: 0,
