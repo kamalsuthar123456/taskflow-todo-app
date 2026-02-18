@@ -533,28 +533,47 @@ const Dashboard = () => {
     preloadAllDashboardIcons().catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const completedCount = tasks.filter(t => t.completed).length;
+    const activeCount = tasks.filter(t => !t.completed).length;
 
-   useEffect(() => {
+    console.log('📊 Stats Dashboard Update:', {
+      totalTasks: tasks.length,
+      completedTasks: completedCount,
+      activeTasks: activeCount,
+      currentStreak: streak,
+      timestamp: new Date().toLocaleTimeString('en-IN', { 
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    });
+
+
     if (streak !== undefined) {
-      getStreakIcon(streak);
+      const streakIcon = getStreakIcon(streak);
     }
   }, [tasks, streak]);
 
   useEffect(() => {
-    const checkTimeIcon = () => {
-      getTimeBasedIcon();
+    const checkAndLogTimeIcon = () => {
+      const timeIcon = getTimeBasedIcon();
+      console.log(
+        `⏰ Time-based icon refresh: ${timeIcon.label} at ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`
+      );
     };
 
-    checkTimeIcon();
+    checkAndLogTimeIcon();
 
     const interval = setInterval(() => {
-      checkTimeIcon();
+      checkAndLogTimeIcon();
       setTaskFilter(prev => prev);
     }, 60 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, []);
-  
+
   useEffect(() => {
     if (streak > 0) {
       if (streak === 3) {
